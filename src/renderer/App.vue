@@ -1,12 +1,12 @@
 <template>
   <div id="app">
-    <router-view></router-view>
+    We are here !
   </div>
 </template>
 
 <script>
   export default {
-    name: 'wearehere'
+    name: 'wearehere',
   }
 </script>
 
