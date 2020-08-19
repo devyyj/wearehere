@@ -33,7 +33,7 @@
       // resize 이벤트 리스너 등록
       window.addEventListener('resize', () => {
         // - 4 를 해야 세로 스크롤이 안생김
-        this.config.size = window.innerHeight - 4
+        this.config.size = window.innerHeight
         this.init()
       })
 
@@ -45,7 +45,7 @@
       // currentWindow.setFullScreen(true)
 
       // 초기화
-      this.config.size = window.innerHeight - 4
+      this.config.size = window.innerHeight
       this.init()
 
       setInterval(() => {
@@ -59,8 +59,8 @@
         this.ctx = this.canvas.getContext('2d')
         // 상수를 사용해 캔버스의 크기를 계산한다.
         // 선을 그릴때 좌표에 0.5픽셀씩 더하기 때문에 +1을 해준다.
-        this.ctx.canvas.width = this.config.size + 1
-        this.ctx.canvas.height = this.config.size + 1
+        this.ctx.canvas.width = this.config.size - (this.config.size % this.blockSize) + 1
+        this.ctx.canvas.height = this.config.size - (this.config.size % this.blockSize) + 1
 
         // 블록의 크기를 변경한다.
         this.ctx.scale(this.blockSize, this.blockSize)
