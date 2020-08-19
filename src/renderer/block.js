@@ -5,22 +5,21 @@ class Block {
   shape
   ctx
 
-  constructor(ctx) {
+  constructor(ctx, x) {
     this.ctx = ctx
     this.spawn()
+    
+    // Starting position.
+    this.x = x
+    this.y = 0
   }
 
   spawn() {
     this.color = 'blue'
     this.shape = [
-      [2, 0, 0],
-      [2, 2, 2],
-      [0, 0, 0],
+      [1, 1],
+      [1, 1],
     ]
-
-    // Starting position.
-    this.x = 3
-    this.y = 0
   }
 
   draw() {
@@ -35,6 +34,11 @@ class Block {
         }
       })
     })
+  }
+
+  move(p) {
+    this.x = p.x
+    this.y = p.y
   }
 }
 
