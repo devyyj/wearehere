@@ -1,148 +1,151 @@
 <template>
-  <div id="app" style="text-align: center;">
-    <canvas id="board" class="game-board"></canvas>
+  <div id="app">
+    <div id="main">
+      <canvas id="top-board"></canvas><canvas id="bottom-board"></canvas>
+    </div>
   </div>
 </template>
 
 <script>
   import Board from './board'
   import Block from './block'
-  // const {remote} = require('electron')
 
   export default {
     name: 'wearehere',
     data() {
       return {
-        canvas: undefined,
-        ctx: undefined,
-        board: undefined,
+        topCtx: undefined,
+        bottomCtx: undefined,
+        topBoard: undefined,
+        bottomBoard: undefined,
         config: {
           size: 0, // board 크기
-          count: 20, // 한 줄당 block 수
+          count: 80, // 한 줄당 block 수
         },
         isPause: false,
       }
     },
     computed: {
       blockSize() {
-        // 선명한 선을 그리기 위해 int 자료형으로 리턴
-        return parseInt(this.config.size / this.config.count)
+        return this.config.size / this.config.count
       },
     },
     created() {
       // resize 이벤트 리스너 등록
       window.addEventListener('resize', () => {
-        // - 4 를 해야 세로 스크롤이 안생김
-        this.config.size = window.innerHeight
-        this.init()
+        this.config.size =
+          parseInt(window.innerHeight / this.config.count) * this.config.count
+        this.init(this.topCtx, this.topBoard)
+        this.init(this.bottomCtx, this.bottomBoard)
       })
 
       // 키보드 이벤트 리스너 등록
       window.addEventListener('keydown', this.handleKey)
     },
     mounted() {
-      // const currentWindow = remote.getCurrentWindow()
-      // currentWindow.setFullScreen(true)
-
       // 초기화
-      this.config.size = window.innerHeight
-      this.init()
+      this.config.size =
+        parseInt(window.innerHeight / this.config.count) * this.config.count
+      const topCtx = document.getElementById('top-board').getContext('2d')
+      const bottomCtx = document.getElementById('bottom-board').getContext('2d')
 
+      this.topCtx = topCtx
+      this.bottomCtx = bottomCtx
+
+      this.initBoard('top')
+      this.initBoard('bottom')
+
+      this.init(topCtx, this.topBoard)
+      this.init(bottomCtx, this.bottomBoard)
+
+      // 위 아래 둘 중에 하나라도 게임이 오버되면 둘다 멈춘다.
       setInterval(() => {
         if (this.isPause) return
-        this.down()
-      }, 100)
+        this.down(topCtx, this.topBoard)
+        this.down(bottomCtx, this.bottomBoard)
+      }, 1)
     },
     methods: {
-      init() {
-        this.canvas = document.getElementById('board')
-        this.ctx = this.canvas.getContext('2d')
-        // 상수를 사용해 캔버스의 크기를 계산한다.
+      init(ctx, board) {
         // 선을 그릴때 좌표에 0.5픽셀씩 더하기 때문에 +1을 해준다.
-        this.ctx.canvas.width = this.config.size - (this.config.size % this.blockSize) + 1
-        this.ctx.canvas.height = this.config.size - (this.config.size % this.blockSize) + 1
-
+        ctx.canvas.width = this.config.size + 1
+        ctx.canvas.height = this.config.size / 2 + 1
         // 블록의 크기를 변경한다.
-        this.ctx.scale(this.blockSize, this.blockSize)
-
-        // 보드 리셋
-        if (this.board === undefined) {
-          this.board = new Board(this.config.count, this.config.count)
-          this.board.ctx = this.ctx
-          this.board.reset()
-        }
-
+        ctx.scale(this.blockSize, this.blockSize)
         // 시작점 랜덤 지정
         let x = parseInt((Math.random() * 100) % (this.config.count - 2))
         if (x % 2 === 1) x += 1
-
         // 블럭 생성
-        let block = new Block(this.ctx, x)
+        let block = new Block(ctx, x)
         block.draw()
-        this.board.block = block
-
-        // 선을 그린다.
-        this.drawGrid()
-
+        board.block = block
         // 보드에 쌓인 블럭 그리기
-        this.board.drawBoard()
+        board.drawBoard()
+        // 선을 그린다.
+        this.drawGrid(ctx)
       },
-      drawGrid() {
+      drawGrid(ctx) {
         // ctx.scale 초기화
-        this.ctx.resetTransform()
+        ctx.resetTransform()
         const size = this.config.size
-        // 왜 0.5를 더해야 선명한 선이 그려지는 지 모르겠음.
         // 세로 선
         for (let x = 0; x <= size; x += this.blockSize) {
-          this.ctx.moveTo(0.5 + x, 0)
-          // blockSize를 int형으로 리턴하기 때문에 height % this.blockSize 값을 뺀다
-          // 오른쪽 아래 모서리까지 그리기 위해 0.5를 더한다.
+          ctx.moveTo(0.5 + x, 0)
+          // 0.5를 더해야 선명한 선이 그려지고 오른쪽 아래 모서리까지 제대로 그려진다.
           // 해당 값을 제거하고 실행하면 왜 이렇게 처리 했는지 알수 있음
           // 가로 선도 마찬가지
-          this.ctx.lineTo(0.5 + x, size - (size % this.blockSize) + 0.5)
+          ctx.lineTo(0.5 + x, 0.5 + size * this.blockSize)
         }
         // 가로 선
         for (let y = 0; y <= size; y += this.blockSize) {
-          this.ctx.moveTo(0, 0.5 + y)
-          this.ctx.lineTo(size - (size % this.blockSize) + 0.5, 0.5 + y)
+          ctx.moveTo(0, 0.5 + y)
+          ctx.lineTo(0.5 + size * this.blockSize, 0.5 + y)
         }
-
-        this.ctx.strokeStyle = 'black'
-        this.ctx.stroke()
+        ctx.strokeStyle = 'black'
+        ctx.stroke()
         // ctx.scale 재설정
-        this.ctx.scale(this.blockSize, this.blockSize)
+        ctx.scale(this.blockSize, this.blockSize)
       },
-      down() {
-        this.board.block.y += 1
-        if (this.board.valid(this.board.block) === false) {
-          this.board.block.y -= 1
-          this.board.freeze()
-          if(this.board.block.y === 0) {
+      down(ctx, board) {
+        board.block.y += 1
+        if (board.valid(board.block) === false) {
+          board.block.y -= 1
+          board.freeze()
+          if (board.block.y === 0) {
             this.isPause = true
             return
           }
-          this.init()
+          this.init(ctx, board)
         } else {
-          this.board.block.move(this.board.block)
-          this.ctx.clearRect(
-            0,
-            0,
-            this.ctx.canvas.width,
-            this.ctx.canvas.height,
-          )
-          this.board.block.draw()
+          board.block.move(board.block)
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+          board.block.draw()
         }
         // 보드에 쌓인 블럭 그리기
-        this.board.drawBoard()
+        board.drawBoard()
         // 그리드 그리기
-        this.drawGrid()
+        this.drawGrid(ctx)
       },
       handleKey(e) {
         if (e.code === 'KeyP') this.isPause = !this.isPause
         else if (e.code === 'KeyR') {
           this.isPause = false
-          this.board = undefined
-          this.init()
+          this.topBoard.reset()
+          this.bottomBoard.reset()
+          this.init(this.topCtx, this.topBoard)
+          this.init(this.bottomCtx, this.bottomBoard)
+        }
+      },
+      initBoard(position) {
+        const top = position === 'top' ? true : false
+        if (top) {
+          this.topBoard = new Board(this.config.count / 2, this.config.count)
+          this.topBoard.ctx = this.topCtx
+          this.topBoard.reset()
+        } else {
+          this.bottomBoard = new Board(this.config.count / 2, this.config.count)
+          this.bottomBoard.ctx = this.bottomCtx
+          this.bottomBoard.reset()
         }
       },
     },
@@ -151,4 +154,14 @@
 
 <style>
   /* CSS */
+  #main {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  canvas {
+    margin-bottom: -5px;
+  }
 </style>
