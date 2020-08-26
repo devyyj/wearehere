@@ -5,13 +5,13 @@ class Block {
   shape
   ctx
 
-  constructor(ctx, x) {
+  constructor(ctx, x, y) {
     this.ctx = ctx
     this.spawn()
     
     // Starting position.
     this.x = x
-    this.y = 0
+    this.y = y
   }
 
   spawn() {

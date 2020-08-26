@@ -35,8 +35,8 @@
       window.addEventListener('resize', () => {
         this.config.size =
           parseInt(window.innerHeight / this.config.count) * this.config.count
-        this.init(this.topCtx, this.topBoard)
-        this.init(this.bottomCtx, this.bottomBoard)
+        this.init('top')
+        this.init('bottom', true)
       })
 
       // 키보드 이벤트 리스너 등록
@@ -55,28 +55,41 @@
       this.initBoard('top')
       this.initBoard('bottom')
 
-      this.init(topCtx, this.topBoard)
-      this.init(bottomCtx, this.bottomBoard)
+      this.init('top')
+      this.init('bottom', true)
 
       // 위 아래 둘 중에 하나라도 게임이 오버되면 둘다 멈춘다.
       setInterval(() => {
         if (this.isPause) return
-        this.down(topCtx, this.topBoard)
-        this.down(bottomCtx, this.bottomBoard)
+        this.down('top')
+        this.down('bottom', true)
       }, 1)
     },
     methods: {
-      init(ctx, board) {
+      init(position, reverse = false) {
+        let ctx
+        let board
+        if (position === 'top') {
+          ctx = this.topCtx
+          board = this.topBoard
+        } else {
+          ctx = this.bottomCtx
+          board = this.bottomBoard
+        }
         // 선을 그릴때 좌표에 0.5픽셀씩 더하기 때문에 +1을 해준다.
         ctx.canvas.width = this.config.size + 1
         ctx.canvas.height = this.config.size / 2 + 1
         // 블록의 크기를 변경한다.
         ctx.scale(this.blockSize, this.blockSize)
         // 시작점 랜덤 지정
-        let x = parseInt((Math.random() * 100) % (this.config.count - 2))
+        let random = Math.random()
+        let time = Date.now()
+        let x = parseInt(((random * 100) + time) % (this.config.count - 2))
         if (x % 2 === 1) x += 1
+        let y = 0
+        if (reverse) y = this.config.count / 2 - 2
         // 블럭 생성
-        let block = new Block(ctx, x)
+        let block = new Block(ctx, x, y)
         block.draw()
         board.block = block
         // 보드에 쌓인 블럭 그리기
@@ -106,16 +119,35 @@
         // ctx.scale 재설정
         ctx.scale(this.blockSize, this.blockSize)
       },
-      down(ctx, board) {
-        board.block.y += 1
+      down(position, reverse = false) {
+        let ctx
+        let board
+        if (position === 'top') {
+          ctx = this.topCtx
+          board = this.topBoard
+        } else {
+          ctx = this.bottomCtx
+          board = this.bottomBoard
+        }
+
+        if (reverse) board.block.y -= 1
+        else board.block.y += 1
         if (board.valid(board.block) === false) {
-          board.block.y -= 1
+          if (reverse) board.block.y += 1
+          else board.block.y -= 1
           board.freeze()
-          if (board.block.y === 0) {
-            this.isPause = true
-            return
+          if (reverse) {
+            if (board.block.y === (this.config.count / 2) -2 ) {
+              this.isPause = true
+              return
+            }
+          } else {
+            if (board.block.y === 0) {
+              this.isPause = true
+              return
+            }
           }
-          this.init(ctx, board)
+          this.init(position, reverse)
         } else {
           board.block.move(board.block)
           ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
@@ -132,8 +164,8 @@
           this.isPause = false
           this.topBoard.reset()
           this.bottomBoard.reset()
-          this.init(this.topCtx, this.topBoard)
-          this.init(this.bottomCtx, this.bottomBoard)
+          this.init('top')
+          this.init('bottom', true)
         }
       },
       initBoard(position) {
