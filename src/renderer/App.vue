@@ -3,6 +3,47 @@
     <div id="main">
       <canvas id="top-board"></canvas><canvas id="bottom-board"></canvas>
     </div>
+    <b-modal
+      id="env"
+      centered
+      title="환경설정"
+      @show="handleShow"
+      @ok="handleOK"
+    >
+      <b-form-row>
+        <b-col>
+          <b-form-group
+            description="범위 : ±90까지. 소수 6자리까지 가능."
+            label="위도"
+            :valid-feedback="'0에 가까울수록 블럭이 빨라집니다.'"
+            :invalid-feedback="'입력 값 범위를 확인하세요'"
+          >
+            <b-form-input
+              type="number"
+              v-model="config.tempLatitude"
+              :state="stateLatitude"
+            ></b-form-input>
+          </b-form-group>
+        </b-col>
+        <b-col>
+          <b-form-group
+            description="범위 : ±180까지. 소수 6자리까지 가능."
+            label="경도"
+            :valid-feedback="validFeedbackLongitude"
+            :invalid-feedback="'입력 값 범위를 확인하세요'"
+          >
+            <b-form-input
+              type="number"
+              v-model="config.tempLongitude"
+              :state="stateLongitude"
+            ></b-form-input>
+          </b-form-group>
+        </b-col>
+      </b-form-row>
+      <b-alert v-if="alert" show variant="danger"
+        >유효하지 않은 값이 있습니다.</b-alert
+      >
+    </b-modal>
   </div>
 </template>
 
@@ -20,53 +61,79 @@
         bottomBoard: undefined,
         config: {
           size: 0, // board 크기
-          count: 80, // 한 줄당 block 수
+          latitude: 90, // 위도, 속도, 입력값 범위 : 0-90
+          longitude: 0, // 경도, 블럭수, 입력값 범위 : 0-180
+          tempLatitude: 0,
+          tempLongitude: 0,
+          speed: 90, // 실제 블럭 속도
+          count: 20, // 실제 블럭 수
         },
         isPause: false,
+        isPauseR: false,
+        interval: undefined,
+        alert: false,
       }
     },
     computed: {
       blockSize() {
         return this.config.size / this.config.count
       },
+      stateLatitude() {
+        return (
+          Math.abs(parseInt(this.config.tempLatitude)) <= 90 &&
+          this.config.tempLatitude.length <= 9
+        )
+      },
+      stateLongitude() {
+        return (
+          Math.abs(parseInt(this.config.tempLongitude)) <= 180 &&
+          this.config.tempLongitude.length <= 10
+        )
+      },
+      calculateLongitude() {
+        // 한 줄에 20~140개. 즉 120의 범위를 가짐. 짝수개만 취급하면 총 60단계
+        // 경도 범위는 0~180
+        // 180/60 = 3, 경도 범위 1당 블럭 수 1단계씩 올리면 됨.
+        // 블럭수 1단계는 2개씩 증가
+        return (
+          20 + Math.ceil(Math.abs(parseInt(this.config.tempLongitude)) / 3) * 2
+        )
+      },
+      validFeedbackLongitude() {
+        return `한 줄에 ${this.calculateLongitude}개의 블럭이 생성됩니다.`
+      },
     },
     created() {
       // resize 이벤트 리스너 등록
       window.addEventListener('resize', () => {
         this.config.size =
-          parseInt(window.innerHeight / this.config.count) * this.config.count
-        this.init('top')
-        this.init('bottom', true)
+          parseInt(window.innerHeight / this.config.count) *
+          this.config.count
+        this.initBlock('top')
+        this.initBlock('bottom', true)
       })
 
       // 키보드 이벤트 리스너 등록
       window.addEventListener('keydown', this.handleKey)
     },
     mounted() {
-      // 초기화
-      this.config.size =
-        parseInt(window.innerHeight / this.config.count) * this.config.count
-      const topCtx = document.getElementById('top-board').getContext('2d')
-      const bottomCtx = document.getElementById('bottom-board').getContext('2d')
+      this.topCtx = document.getElementById('top-board').getContext('2d')
+      this.bottomCtx = document.getElementById('bottom-board').getContext('2d')
 
-      this.topCtx = topCtx
-      this.bottomCtx = bottomCtx
-
-      this.initBoard('top')
-      this.initBoard('bottom')
-
-      this.init('top')
-      this.init('bottom', true)
-
-      // 위 아래 둘 중에 하나라도 게임이 오버되면 둘다 멈춘다.
-      setInterval(() => {
-        if (this.isPause) return
-        this.down('top')
-        this.down('bottom', true)
-      }, 1)
+      this.init()
+      this.resetInterval()
     },
     methods: {
-      init(position, reverse = false) {
+      init() {
+        this.setBoardSize()
+
+        this.initBoard('top')
+        this.initBoard('bottom')
+
+        this.initBlock('top')
+        this.initBlock('bottom', true)
+      },
+      initBlock(position, reverse = false) {
         let ctx
         let board
         if (position === 'top') {
@@ -84,7 +151,7 @@
         // 시작점 랜덤 지정
         let random = Math.random()
         let time = Date.now()
-        let x = parseInt(((random * 100) + time) % (this.config.count - 2))
+        let x = parseInt(Math.random() * (this.config.count - 2))
         if (x % 2 === 1) x += 1
         let y = 0
         if (reverse) y = this.config.count / 2 - 2
@@ -135,19 +202,29 @@
         if (board.valid(board.block) === false) {
           if (reverse) board.block.y += 1
           else board.block.y -= 1
+
           board.freeze()
-          if (reverse) {
-            if (board.block.y === (this.config.count / 2) -2 ) {
-              this.isPause = true
-              return
-            }
-          } else {
-            if (board.block.y === 0) {
-              this.isPause = true
-              return
-            }
+
+          if (board.isFullRow(reverse)) {
+            reverse ? (this.isPauseR = true) : (this.isPause = true)
+            return
           }
-          this.init(position, reverse)
+
+          // 테트리스 규칙으로 종료
+          // (블럭이 최상단에서 막혔을 경우)
+          // if (reverse) {
+          //   if (board.block.y === (this.config.count / 2) -2 ) {
+          //     this.isPause = true
+          //     return
+          //   }
+          // } else {
+          //   if (board.block.y === 0) {
+          //     this.isPause = true
+          //     return
+          //   }
+          // }
+
+          this.initBlock(position, reverse)
         } else {
           board.block.move(board.block)
           ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
@@ -159,27 +236,77 @@
         this.drawGrid(ctx)
       },
       handleKey(e) {
-        if (e.code === 'KeyP') this.isPause = !this.isPause
-        else if (e.code === 'KeyR') {
-          this.isPause = false
-          this.topBoard.reset()
-          this.bottomBoard.reset()
-          this.init('top')
-          this.init('bottom', true)
+        if (e.code === 'KeyP') {
+          this.isPause = !this.isPause
+          this.isPauseR = !this.isPauseR
+        } else if (e.code === 'KeyR') {
+          this.restart()
+        } else if (e.code === 'KeyE') {
+          this.$bvModal.show('env')
         }
+      },
+      restart() {
+        this.isPause = false
+        this.isPauseR = false
+        this.topBoard.reset()
+        this.bottomBoard.reset()
+        this.initBlock('top')
+        this.initBlock('bottom', true)
       },
       initBoard(position) {
         const top = position === 'top' ? true : false
         if (top) {
-          this.topBoard = new Board(this.config.count / 2, this.config.count)
+          this.topBoard = new Board(
+            this.config.count / 2,
+            this.config.count,
+          )
           this.topBoard.ctx = this.topCtx
           this.topBoard.reset()
         } else {
-          this.bottomBoard = new Board(this.config.count / 2, this.config.count)
+          this.bottomBoard = new Board(
+            this.config.count / 2,
+            this.config.count,
+          )
           this.bottomBoard.ctx = this.bottomCtx
           this.bottomBoard.reset()
         }
       },
+      handleShow() {
+        this.config.tempLatitude = String(this.config.latitude)
+        this.config.tempLongitude = String(this.config.longitude)
+        this.alert = false
+      },
+      handleOK(evt) {
+        if (this.stateLatitude && this.stateLongitude) {
+          // 환경 설정 창에서 보여줄 값
+          this.config.latitude = this.config.tempLatitude
+          this.config.longitude = this.config.tempLongitude
+          // 실제 적용할 값
+          this.config.speed = parseInt(this.config.tempLatitude)
+          this.config.count = this.calculateLongitude
+          this.init()
+          this.resetInterval()
+          this.restart()
+        } else {
+          evt.preventDefault()
+          this.alert = true
+        }
+      },
+      setBoardSize() {
+        this.config.size =
+          parseInt(window.innerHeight / this.config.count) *
+          this.config.count
+      },
+      resetInterval() {
+        // 위 아래 둘 중에 하나라도 게임이 오버되면 둘다 멈춘다.
+        clearInterval(this.interval)
+        this.interval = setInterval(() => {
+          if (this.isPause && this.isPauseR) return
+          this.down('top')
+          this.down('bottom', true)
+        }, this.config.speed)
+      },
+      validFeedbackLatitude() {},
     },
   }
 </script>
@@ -194,6 +321,6 @@
   }
 
   canvas {
-    margin-bottom: -5px;
+    margin-bottom: -7px;
   }
 </style>

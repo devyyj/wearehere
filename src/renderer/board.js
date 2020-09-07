@@ -57,11 +57,16 @@ class Board {
     this.grid.forEach((row, y) => {
       row.forEach((value, x) => {
         if (value > 0) {
-          this.ctx.fillStyle = 'red';
-          this.ctx.fillRect(x, y, 1, 1);
+          this.ctx.fillStyle = 'red'
+          this.ctx.fillRect(x, y, 1, 1)
         }
-      });
-    });
+      })
+    })
+  }
+
+  isFullRow(reverse = false) {
+    if (reverse) return this.grid[this.rows-1].every((x) => x > 0)
+    else return this.grid[0].every((x) => x > 0)
   }
 }
 
