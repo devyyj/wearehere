@@ -1,21 +1,21 @@
 class Block {
   x
   y
-  color
   shape
   ctx
 
-  constructor(ctx, x, y) {
+  constructor(ctx, x, y, color = 'green') {
     this.ctx = ctx
     this.spawn()
     
     // Starting position.
     this.x = x
     this.y = y
+
+    this.color = color
   }
 
   spawn() {
-    this.color = 'blue'
     this.shape = [
       [1, 1],
       [1, 1],

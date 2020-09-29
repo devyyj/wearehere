@@ -13,9 +13,9 @@
       <b-form-row>
         <b-col>
           <b-form-group
-            description="범위 : ±90까지. 소수 6자리까지 가능."
+            description="범위 : ±90까지. 소수 6자리까지 가능. 속도는 1단계부터 7단계까지 있으며 단계가 낮을수록 빠름."
             label="위도"
-            :valid-feedback="'0에 가까울수록 블럭이 빨라집니다.'"
+            :valid-feedback="validFeedbackLatitude"
             :invalid-feedback="'입력 값 범위를 확인하세요'"
           >
             <b-form-input
@@ -40,6 +40,20 @@
           </b-form-group>
         </b-col>
       </b-form-row>
+
+      <b-form-row>
+        <b-col>
+          <b-form-group label="블럭 색상">
+            <b-form-input type="color" v-model="config.blockColor"></b-form-input>
+          </b-form-group>
+        </b-col>
+        <b-col>
+          <b-form-group label="그리드 색상">
+            <b-form-input type="color" v-model="config.inputGridColor"></b-form-input>
+          </b-form-group>
+        </b-col>
+      </b-form-row>
+
       <b-alert v-if="alert" show variant="danger"
         >유효하지 않은 값이 있습니다.</b-alert
       >
@@ -67,6 +81,9 @@
           tempLongitude: 0,
           speed: 90, // 실제 블럭 속도
           count: 20, // 실제 블럭 수
+          blockColor: '#008000',
+          inputGridColor: '#808080',
+          gridColor: '#808080',
         },
         isPause: false,
         isPauseR: false,
@@ -101,6 +118,9 @@
       },
       validFeedbackLongitude() {
         return `한 줄에 ${this.calculateLongitude}개의 블럭이 생성됩니다.`
+      },
+      validFeedbackLatitude() {
+        return `${Math.floor(Math.abs(this.config.tempLatitude / 13)) + 1} 단계 속도가 적용됩니다.`
       },
     },
     created() {
@@ -156,15 +176,15 @@
         let y = 0
         if (reverse) y = this.config.count / 2 - 2
         // 블럭 생성
-        let block = new Block(ctx, x, y)
+        let block = new Block(ctx, x, y, this.config.blockColor)
         block.draw()
         board.block = block
         // 보드에 쌓인 블럭 그리기
         board.drawBoard()
         // 선을 그린다.
-        this.drawGrid(ctx)
+        this.drawGrid(ctx, reverse)
       },
-      drawGrid(ctx) {
+      drawGrid(ctx, reverse = false) {
         // ctx.scale 초기화
         ctx.resetTransform()
         const size = this.config.size
@@ -178,10 +198,11 @@
         }
         // 가로 선
         for (let y = 0; y <= size; y += this.blockSize) {
+          if(reverse && y === 0) continue 
           ctx.moveTo(0, 0.5 + y)
           ctx.lineTo(0.5 + size * this.blockSize, 0.5 + y)
         }
-        ctx.strokeStyle = 'black'
+        ctx.strokeStyle = this.config.gridColor
         ctx.stroke()
         // ctx.scale 재설정
         ctx.scale(this.blockSize, this.blockSize)
@@ -233,7 +254,7 @@
         // 보드에 쌓인 블럭 그리기
         board.drawBoard()
         // 그리드 그리기
-        this.drawGrid(ctx)
+        this.drawGrid(ctx, reverse)
       },
       handleKey(e) {
         if (e.code === 'KeyP') {
@@ -259,6 +280,7 @@
           this.topBoard = new Board(
             this.config.count / 2,
             this.config.count,
+            this.config.blockColor
           )
           this.topBoard.ctx = this.topCtx
           this.topBoard.reset()
@@ -266,6 +288,7 @@
           this.bottomBoard = new Board(
             this.config.count / 2,
             this.config.count,
+            this.config.blockColor
           )
           this.bottomBoard.ctx = this.bottomCtx
           this.bottomBoard.reset()
@@ -282,8 +305,12 @@
           this.config.latitude = this.config.tempLatitude
           this.config.longitude = this.config.tempLongitude
           // 실제 적용할 값
-          this.config.speed = parseInt(this.config.tempLatitude)
+          const speedArr = [0, 2, 4, 8, 16, 32, 64]
+          this.config.speed = speedArr[Math.floor(Math.abs(this.config.tempLatitude / 13))]
           this.config.count = this.calculateLongitude
+
+          this.config.gridColor = this.config.inputGridColor
+
           this.init()
           this.resetInterval()
           this.restart()
@@ -306,7 +333,6 @@
           this.down('bottom', true)
         }, this.config.speed)
       },
-      validFeedbackLatitude() {},
     },
   }
 </script>
@@ -321,6 +347,6 @@
   }
 
   canvas {
-    margin-bottom: -7px;
+    margin-bottom: -6px;
   }
 </style>

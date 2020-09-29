@@ -1,10 +1,11 @@
 class Board {
-  constructor(rows, cols) {
+  constructor(rows, cols, color = 'green') {
     this.grid
     this.rows = rows
     this.cols = cols
     this.block
     this.ctx
+    this.color = color
   }
 
   // 새 게임이 시작되면 보드를 초기화한다.
@@ -57,7 +58,7 @@ class Board {
     this.grid.forEach((row, y) => {
       row.forEach((value, x) => {
         if (value > 0) {
-          this.ctx.fillStyle = 'red'
+          this.ctx.fillStyle = this.color
           this.ctx.fillRect(x, y, 1, 1)
         }
       })
