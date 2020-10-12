@@ -126,11 +126,10 @@
     created() {
       // resize 이벤트 리스너 등록
       window.addEventListener('resize', () => {
-        this.config.size =
-          parseInt(window.innerHeight / this.config.count) *
-          this.config.count
-        this.initBlock('top')
-        this.initBlock('bottom', true)
+        // this.setBoardSize()
+        // this.initBlock('top')
+        // this.initBlock('bottom', true)
+        this.init()
       })
 
       // 키보드 이벤트 리스너 등록
@@ -194,13 +193,13 @@
           // 0.5를 더해야 선명한 선이 그려지고 오른쪽 아래 모서리까지 제대로 그려진다.
           // 해당 값을 제거하고 실행하면 왜 이렇게 처리 했는지 알수 있음
           // 가로 선도 마찬가지
-          ctx.lineTo(0.5 + x, 0.5 + size * this.blockSize)
+          ctx.lineTo(0.5 + x, size * this.blockSize)
         }
         // 가로 선
         for (let y = 0; y <= size; y += this.blockSize) {
-          if(reverse && y === 0) continue 
+          // if(reverse && y === 0) continue 
           ctx.moveTo(0, 0.5 + y)
-          ctx.lineTo(0.5 + size * this.blockSize, 0.5 + y)
+          ctx.lineTo(size * this.blockSize, 0.5 + y)
         }
         ctx.strokeStyle = this.config.gridColor
         ctx.stroke()
@@ -230,20 +229,6 @@
             reverse ? (this.isPauseR = true) : (this.isPause = true)
             return
           }
-
-          // 테트리스 규칙으로 종료
-          // (블럭이 최상단에서 막혔을 경우)
-          // if (reverse) {
-          //   if (board.block.y === (this.config.count / 2) -2 ) {
-          //     this.isPause = true
-          //     return
-          //   }
-          // } else {
-          //   if (board.block.y === 0) {
-          //     this.isPause = true
-          //     return
-          //   }
-          // }
 
           this.initBlock(position, reverse)
         } else {
@@ -323,9 +308,29 @@
         this.config.size =
           parseInt(window.innerHeight / this.config.count) *
           this.config.count
+
+        // let container = document.getElementById("main");
+        // let canvasTop = document.getElementById("top-board");
+        // let canvasBottom = document.getElementById("bottom-board");
+
+        // let pixelRatio = Math.round(window.devicePixelRatio) || 1
+
+        // canvasTop.width = pixelRatio * this.config.size;
+        // canvasTop.height = pixelRatio * this.config.size / 2;
+
+        // canvasTop.style.width = Math.round(canvasTop.width / pixelRatio) + "px";
+        // canvasTop.style.height = Math.round(canvasTop.height / pixelRatio) + "px";
+
+        // canvasBottom.width = this.config.size * pixelRatio;
+        // canvasBottom.height = this.config.size / 2 * pixelRatio;
+
+        // canvasBottom.style.width = Math.round(canvasBottom.width / pixelRatio) + "px";
+        // canvasBottom.style.height = Math.round(canvasBottom.height / pixelRatio) + "px";
+
+        // container.style.width = canvasTop.style.width;
+        // container.style.height = canvasTop.style.height + canvasBottom.style.height;
       },
       resetInterval() {
-        // 위 아래 둘 중에 하나라도 게임이 오버되면 둘다 멈춘다.
         clearInterval(this.interval)
         this.interval = setInterval(() => {
           if (this.isPause && this.isPauseR) return
@@ -347,6 +352,6 @@
   }
 
   canvas {
-    margin-bottom: -6px;
+    margin-bottom: -7px;
   }
 </style>
