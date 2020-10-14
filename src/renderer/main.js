@@ -8,7 +8,7 @@ import store from './store'
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue/dist/bootstrap-vue.css'
 
-Vue.use(require('bootstrap-vue/dist/bootstrap-vue.common.min'));
+Vue.use(require('bootstrap-vue/dist/bootstrap-vue.common.min'))
 
 if (!process.env.IS_WEB) Vue.use(require('vue-electron'))
 Vue.http = Vue.prototype.$http = axios

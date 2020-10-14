@@ -1,7 +1,8 @@
 <template>
   <div id="app" :style="config.bodyStyle">
     <div id="main">
-      <canvas id="top-board" :style="config.boardStyle"></canvas><canvas id="bottom-board" :style="config.boardStyle"></canvas>
+      <canvas id="top-board" :style="config.boardStyle"></canvas
+      ><canvas id="bottom-board" :style="config.boardStyle"></canvas>
     </div>
     <b-modal
       id="env"
@@ -45,12 +46,18 @@
       <b-form-row>
         <b-col>
           <b-form-group label="블럭 색상">
-            <b-form-input type="color" v-model="config.blockColor"></b-form-input>
+            <b-form-input
+              type="color"
+              v-model="config.blockColor"
+            ></b-form-input>
           </b-form-group>
         </b-col>
         <b-col>
           <b-form-group label="그리드 색상">
-            <b-form-input type="color" v-model="config.inputGridColor"></b-form-input>
+            <b-form-input
+              type="color"
+              v-model="config.inputGridColor"
+            ></b-form-input>
           </b-form-group>
         </b-col>
       </b-form-row>
@@ -58,12 +65,18 @@
       <b-form-row>
         <b-col>
           <b-form-group label="배경 색상">
-            <b-form-input type="color" v-model="config.inputBackgroundColor"></b-form-input>
+            <b-form-input
+              type="color"
+              v-model="config.inputBackgroundColor"
+            ></b-form-input>
           </b-form-group>
         </b-col>
         <b-col>
           <b-form-group label="여백 색상">
-            <b-form-input type="color" v-model="config.inputMarginColor"></b-form-input>
+            <b-form-input
+              type="color"
+              v-model="config.inputMarginColor"
+            ></b-form-input>
           </b-form-group>
         </b-col>
       </b-form-row>
@@ -99,15 +112,15 @@
           blockColor: '#000000',
           gridColor: '#808080',
           inputGridColor: '#808080',
-          inputBackgroundColor : '#ffffff',
-          inputMarginColor : '#ffffff',
-          boardStyle : {
-            backgroundColor : '#ffffff',
+          inputBackgroundColor: '#ffffff',
+          inputMarginColor: '#ffffff',
+          boardStyle: {
+            backgroundColor: '#ffffff',
           },
-          bodyStyle : {
+          bodyStyle: {
             height: '0px',
-            backgroundColor: '#ffffff'
-          }
+            backgroundColor: '#ffffff',
+          },
         },
         isPause: false,
         isPauseR: false,
@@ -147,7 +160,9 @@
         return `한 줄에 ${this.calculateLongitude}개의 블럭이 생성됩니다.`
       },
       validFeedbackLatitude() {
-        return `${Math.floor(Math.abs(this.config.tempLatitude / 13)) + 1} 단계 속도가 적용됩니다.`
+        return `${
+          Math.floor(Math.abs(this.config.tempLatitude / 13)) + 1
+        } 단계 속도가 적용됩니다.`
       },
     },
     created() {
@@ -213,7 +228,7 @@
           this.topBoard = new Board(
             this.config.count / 2,
             this.config.count,
-            this.config.blockColor
+            this.config.blockColor,
           )
           this.topBoard.ctx = this.topCtx
           this.topBoard.reset()
@@ -221,7 +236,7 @@
           this.bottomBoard = new Board(
             this.config.count / 2,
             this.config.count,
-            this.config.blockColor
+            this.config.blockColor,
           )
           this.bottomBoard.ctx = this.bottomCtx
           this.bottomBoard.reset()
@@ -241,7 +256,7 @@
         }
         // 가로 선
         for (let y = 0; y <= size; y += this.blockSize) {
-          if(!reverse && y === size) continue 
+          if (!reverse && y === size) continue
           ctx.moveTo(0, 0.5 + y)
           ctx.lineTo(size * this.blockSize, 0.5 + y)
         }
@@ -252,7 +267,9 @@
       },
       endStage(position) {
         let board
-        position === 'top' ? board = this.topBoard : board = this.bottomBoard
+        position === 'top'
+          ? (board = this.topBoard)
+          : (board = this.bottomBoard)
 
         board.setEndRow(0)
         board.drawBoard(true)
@@ -302,8 +319,7 @@
       },
       setBoardSize() {
         this.config.size =
-          parseInt(window.innerHeight / this.config.count) *
-          this.config.count
+          parseInt(window.innerHeight / this.config.count) * this.config.count
       },
       restart() {
         this.end = false
@@ -323,8 +339,8 @@
             this.endStage('top')
             this.endStage('bottom')
           }
-        }, this.config.endSpeed);
-      
+        }, this.config.endSpeed)
+
         // 블럭을 떨어뜨리는 인터벌
         clearInterval(this.downInterval)
         this.downInterval = setInterval(() => {
@@ -357,7 +373,8 @@
           this.config.longitude = this.config.tempLongitude
           // 실제 적용할 값
           const speedArr = [0, 2, 4, 8, 16, 32, 64]
-          this.config.speed = speedArr[Math.floor(Math.abs(this.config.tempLatitude / 13))]
+          this.config.speed =
+            speedArr[Math.floor(Math.abs(this.config.tempLatitude / 13))]
           this.config.count = this.calculateLongitude
 
           this.config.gridColor = this.config.inputGridColor

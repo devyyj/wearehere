@@ -7,7 +7,7 @@ class Block {
   constructor(ctx, x, y, color = 'green') {
     this.ctx = ctx
     this.spawn()
-    
+
     // Starting position.
     this.x = x
     this.y = y

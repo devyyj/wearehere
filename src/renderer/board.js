@@ -60,8 +60,8 @@ class Board {
         if (!isEnd && value > 0) {
           this.ctx.fillStyle = this.color
           this.ctx.fillRect(x, y, 1, 1)
-        } 
-        
+        }
+
         if (isEnd && value < 0) {
           this.ctx.fillStyle = 'red'
           this.ctx.fillRect(x, y, 1, 1)
@@ -71,12 +71,12 @@ class Board {
   }
 
   isFullRow(reverse = false) {
-    if (reverse) return this.board[this.rows-1].every((x) => x > 0)
+    if (reverse) return this.board[this.rows - 1].every((x) => x > 0)
     else return this.board[0].every((x) => x > 0)
   }
 
   setEndRow(index) {
-    this.board[index] = this.board[index].map(x => x=-1)
+    this.board[index] = this.board[index].map((x) => (x = -1))
   }
 }
 
