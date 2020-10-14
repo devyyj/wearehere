@@ -1,7 +1,7 @@
 <template>
-  <div id="app">
+  <div id="app" :style="config.bodyStyle">
     <div id="main">
-      <canvas id="top-board"></canvas><canvas id="bottom-board"></canvas>
+      <canvas id="top-board" :style="config.boardStyle"></canvas><canvas id="bottom-board" :style="config.boardStyle"></canvas>
     </div>
     <b-modal
       id="env"
@@ -9,6 +9,7 @@
       title="환경설정"
       @show="handleShow"
       @ok="handleOK"
+      @hide="handleHide"
     >
       <b-form-row>
         <b-col>
@@ -54,6 +55,19 @@
         </b-col>
       </b-form-row>
 
+      <b-form-row>
+        <b-col>
+          <b-form-group label="배경 색상">
+            <b-form-input type="color" v-model="config.inputBackgroundColor"></b-form-input>
+          </b-form-group>
+        </b-col>
+        <b-col>
+          <b-form-group label="여백 색상">
+            <b-form-input type="color" v-model="config.inputMarginColor"></b-form-input>
+          </b-form-group>
+        </b-col>
+      </b-form-row>
+
       <b-alert v-if="alert" show variant="danger"
         >유효하지 않은 값이 있습니다.</b-alert
       >
@@ -79,16 +93,29 @@
           longitude: 0, // 경도, 블럭수, 입력값 범위 : 0-180
           tempLatitude: 0,
           tempLongitude: 0,
+          endSpeed: 1000, // 스테이지 종료 속도
           speed: 90, // 실제 블럭 속도
           count: 20, // 실제 블럭 수
-          blockColor: '#008000',
-          inputGridColor: '#808080',
+          blockColor: '#000000',
           gridColor: '#808080',
+          inputGridColor: '#808080',
+          inputBackgroundColor : '#ffffff',
+          inputMarginColor : '#ffffff',
+          boardStyle : {
+            backgroundColor : '#ffffff',
+          },
+          bodyStyle : {
+            height: '0px',
+            backgroundColor: '#ffffff'
+          }
         },
         isPause: false,
         isPauseR: false,
-        interval: undefined,
+        downInterval: undefined,
+        endInterval: undefined,
         alert: false,
+        end: false,
+        endCount: 0,
       }
     },
     computed: {
@@ -126,9 +153,6 @@
     created() {
       // resize 이벤트 리스너 등록
       window.addEventListener('resize', () => {
-        // this.setBoardSize()
-        // this.initBlock('top')
-        // this.initBlock('bottom', true)
         this.init()
       })
 
@@ -144,6 +168,8 @@
     },
     methods: {
       init() {
+        this.config.bodyStyle.height = window.innerHeight + 'px'
+
         this.setBoardSize()
 
         this.initBoard('top')
@@ -180,84 +206,6 @@
         board.block = block
         // 보드에 쌓인 블럭 그리기
         board.drawBoard()
-        // 선을 그린다.
-        this.drawGrid(ctx, reverse)
-      },
-      drawGrid(ctx, reverse = false) {
-        // ctx.scale 초기화
-        ctx.resetTransform()
-        const size = this.config.size
-        // 세로 선
-        for (let x = 0; x <= size; x += this.blockSize) {
-          ctx.moveTo(0.5 + x, 0)
-          // 0.5를 더해야 선명한 선이 그려지고 오른쪽 아래 모서리까지 제대로 그려진다.
-          // 해당 값을 제거하고 실행하면 왜 이렇게 처리 했는지 알수 있음
-          // 가로 선도 마찬가지
-          ctx.lineTo(0.5 + x, size * this.blockSize)
-        }
-        // 가로 선
-        for (let y = 0; y <= size; y += this.blockSize) {
-          // if(reverse && y === 0) continue 
-          ctx.moveTo(0, 0.5 + y)
-          ctx.lineTo(size * this.blockSize, 0.5 + y)
-        }
-        ctx.strokeStyle = this.config.gridColor
-        ctx.stroke()
-        // ctx.scale 재설정
-        ctx.scale(this.blockSize, this.blockSize)
-      },
-      down(position, reverse = false) {
-        let ctx
-        let board
-        if (position === 'top') {
-          ctx = this.topCtx
-          board = this.topBoard
-        } else {
-          ctx = this.bottomCtx
-          board = this.bottomBoard
-        }
-
-        if (reverse) board.block.y -= 1
-        else board.block.y += 1
-        if (board.valid(board.block) === false) {
-          if (reverse) board.block.y += 1
-          else board.block.y -= 1
-
-          board.freeze()
-
-          if (board.isFullRow(reverse)) {
-            reverse ? (this.isPauseR = true) : (this.isPause = true)
-            return
-          }
-
-          this.initBlock(position, reverse)
-        } else {
-          board.block.move(board.block)
-          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
-          board.block.draw()
-        }
-        // 보드에 쌓인 블럭 그리기
-        board.drawBoard()
-        // 그리드 그리기
-        this.drawGrid(ctx, reverse)
-      },
-      handleKey(e) {
-        if (e.code === 'KeyP') {
-          this.isPause = !this.isPause
-          this.isPauseR = !this.isPauseR
-        } else if (e.code === 'KeyR') {
-          this.restart()
-        } else if (e.code === 'KeyE') {
-          this.$bvModal.show('env')
-        }
-      },
-      restart() {
-        this.isPause = false
-        this.isPauseR = false
-        this.topBoard.reset()
-        this.bottomBoard.reset()
-        this.initBlock('top')
-        this.initBlock('bottom', true)
       },
       initBoard(position) {
         const top = position === 'top' ? true : false
@@ -279,6 +227,124 @@
           this.bottomBoard.reset()
         }
       },
+      drawGrid(ctx, reverse = false) {
+        // ctx.scale 초기화
+        ctx.resetTransform()
+        const size = this.config.size
+        // 세로 선
+        for (let x = 0; x <= size; x += this.blockSize) {
+          ctx.moveTo(0.5 + x, 0)
+          // 0.5를 더해야 선명한 선이 그려지고 오른쪽 아래 모서리까지 제대로 그려진다.
+          // 해당 값을 제거하고 실행하면 왜 이렇게 처리 했는지 알수 있음
+          // 가로 선도 마찬가지
+          ctx.lineTo(0.5 + x, size * this.blockSize)
+        }
+        // 가로 선
+        for (let y = 0; y <= size; y += this.blockSize) {
+          if(!reverse && y === size) continue 
+          ctx.moveTo(0, 0.5 + y)
+          ctx.lineTo(size * this.blockSize, 0.5 + y)
+        }
+        ctx.strokeStyle = this.config.gridColor
+        ctx.stroke()
+        // ctx.scale 재설정
+        ctx.scale(this.blockSize, this.blockSize)
+      },
+      endStage(position) {
+        let board
+        position === 'top' ? board = this.topBoard : board = this.bottomBoard
+
+        board.setEndRow(0)
+        board.drawBoard(true)
+      },
+      down(position, reverse = false) {
+        let ctx
+        let board
+        if (position === 'top') {
+          ctx = this.topCtx
+          board = this.topBoard
+        } else {
+          ctx = this.bottomCtx
+          board = this.bottomBoard
+        }
+
+        if (reverse) board.block.y -= 1
+        else board.block.y += 1
+
+        if (board.valid(board.block) === false) {
+          if (reverse) board.block.y += 1
+          else board.block.y -= 1
+
+          board.freeze()
+
+          // 게임 종료 조건
+          if (board.isFullRow(reverse)) {
+            reverse ? (this.isPauseR = true) : (this.isPause = true)
+            // pause 키를 누른게 아니라 게임 종료 조건에 따라 게임이 멈췄다면
+            // this.end에 true를 설정하여 스테이지를 종료한다.
+            if (this.isPause && this.isPauseR) {
+              this.end = true
+              this.resetInterval()
+            }
+            return
+          }
+
+          this.initBlock(position, reverse)
+        } else {
+          board.block.move(board.block)
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+          board.block.draw()
+        }
+        // 보드에 쌓인 블럭 그리기
+        board.drawBoard()
+        // 그리드 그리기
+        this.drawGrid(ctx, reverse)
+      },
+      setBoardSize() {
+        this.config.size =
+          parseInt(window.innerHeight / this.config.count) *
+          this.config.count
+      },
+      restart() {
+        this.end = false
+        this.isPause = false
+        this.isPauseR = false
+        this.topBoard.reset()
+        this.bottomBoard.reset()
+        this.initBlock('top')
+        this.initBlock('bottom', true)
+      },
+      resetInterval() {
+        // 스테이지 종료 인터벌
+        clearInterval(this.endInterval)
+        this.endInterval = setInterval(() => {
+          // [NOW] 한줄씩 처리하는 방법 고민중
+          if (this.end && this.endCount < this.blockSize / 2) {
+            this.endStage('top')
+            this.endStage('bottom')
+          }
+        }, this.config.endSpeed);
+      
+        // 블럭을 떨어뜨리는 인터벌
+        clearInterval(this.downInterval)
+        this.downInterval = setInterval(() => {
+          if (this.isPause && this.isPauseR) return
+          this.down('top')
+          this.down('bottom', true)
+        }, this.config.speed)
+      },
+      handleKey(e) {
+        if (e.code === 'KeyP') {
+          this.isPause = !this.isPause
+          this.isPauseR = !this.isPauseR
+        } else if (e.code === 'KeyR') {
+          this.restart()
+        } else if (e.code === 'KeyE') {
+          this.isPause = true
+          this.isPauseR = true
+          this.$bvModal.show('env')
+        }
+      },
       handleShow() {
         this.config.tempLatitude = String(this.config.latitude)
         this.config.tempLongitude = String(this.config.longitude)
@@ -296,6 +362,9 @@
 
           this.config.gridColor = this.config.inputGridColor
 
+          this.config.boardStyle.backgroundColor = this.config.inputBackgroundColor
+          this.config.bodyStyle.backgroundColor = this.config.inputMarginColor
+
           this.init()
           this.resetInterval()
           this.restart()
@@ -304,39 +373,9 @@
           this.alert = true
         }
       },
-      setBoardSize() {
-        this.config.size =
-          parseInt(window.innerHeight / this.config.count) *
-          this.config.count
-
-        // let container = document.getElementById("main");
-        // let canvasTop = document.getElementById("top-board");
-        // let canvasBottom = document.getElementById("bottom-board");
-
-        // let pixelRatio = Math.round(window.devicePixelRatio) || 1
-
-        // canvasTop.width = pixelRatio * this.config.size;
-        // canvasTop.height = pixelRatio * this.config.size / 2;
-
-        // canvasTop.style.width = Math.round(canvasTop.width / pixelRatio) + "px";
-        // canvasTop.style.height = Math.round(canvasTop.height / pixelRatio) + "px";
-
-        // canvasBottom.width = this.config.size * pixelRatio;
-        // canvasBottom.height = this.config.size / 2 * pixelRatio;
-
-        // canvasBottom.style.width = Math.round(canvasBottom.width / pixelRatio) + "px";
-        // canvasBottom.style.height = Math.round(canvasBottom.height / pixelRatio) + "px";
-
-        // container.style.width = canvasTop.style.width;
-        // container.style.height = canvasTop.style.height + canvasBottom.style.height;
-      },
-      resetInterval() {
-        clearInterval(this.interval)
-        this.interval = setInterval(() => {
-          if (this.isPause && this.isPauseR) return
-          this.down('top')
-          this.down('bottom', true)
-        }, this.config.speed)
+      handleHide() {
+        this.isPause = false
+        this.isPauseR = false
       },
     },
   }

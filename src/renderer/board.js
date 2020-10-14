@@ -1,6 +1,6 @@
 class Board {
   constructor(rows, cols, color = 'green') {
-    this.grid
+    this.board
     this.rows = rows
     this.cols = cols
     this.block
@@ -10,7 +10,7 @@ class Board {
 
   // 새 게임이 시작되면 보드를 초기화한다.
   reset() {
-    this.grid = this.getEmptyBoard()
+    this.board = this.getEmptyBoard()
   }
 
   // 0으로 채워진 행렬을 얻는다.
@@ -41,24 +41,29 @@ class Board {
   }
 
   notOccupied(x, y) {
-    return this.grid[y] && this.grid[y][x] === 0
+    return this.board[y] && this.board[y][x] === 0
   }
 
   freeze() {
     this.block.shape.forEach((row, y) => {
       row.forEach((value, x) => {
         if (value > 0) {
-          this.grid[y + this.block.y][x + this.block.x] = value
+          this.board[y + this.block.y][x + this.block.x] = value
         }
       })
     })
   }
 
-  drawBoard() {
-    this.grid.forEach((row, y) => {
+  drawBoard(isEnd = false) {
+    this.board.forEach((row, y) => {
       row.forEach((value, x) => {
-        if (value > 0) {
+        if (!isEnd && value > 0) {
           this.ctx.fillStyle = this.color
+          this.ctx.fillRect(x, y, 1, 1)
+        } 
+        
+        if (isEnd && value < 0) {
+          this.ctx.fillStyle = 'red'
           this.ctx.fillRect(x, y, 1, 1)
         }
       })
@@ -66,8 +71,12 @@ class Board {
   }
 
   isFullRow(reverse = false) {
-    if (reverse) return this.grid[this.rows-1].every((x) => x > 0)
-    else return this.grid[0].every((x) => x > 0)
+    if (reverse) return this.board[this.rows-1].every((x) => x > 0)
+    else return this.board[0].every((x) => x > 0)
+  }
+
+  setEndRow(index) {
+    this.board[index] = this.board[index].map(x => x=-1)
   }
 }
 
