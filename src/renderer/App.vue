@@ -15,7 +15,7 @@
       <b-form-row>
         <b-col>
           <b-form-group
-            description="범위 : ±90까지. 소수 6자리까지 가능. 속도는 1단계부터 7단계까지 있으며 단계가 낮을수록 빠름."
+            description="±90까지 가능. 소수 6자리까지 가능. 속도는 1단계부터 7단계까지 있으며 단계가 낮을수록 빠름."
             label="위도"
             :valid-feedback="validFeedbackLatitude"
             :invalid-feedback="'입력 값 범위를 확인하세요'"
@@ -29,7 +29,7 @@
         </b-col>
         <b-col>
           <b-form-group
-            description="범위 : ±180까지. 소수 6자리까지 가능."
+            description="±180까지 가능. 소수 6자리까지 가능."
             label="경도"
             :valid-feedback="validFeedbackLongitude"
             :invalid-feedback="'입력 값 범위를 확인하세요'"
@@ -41,11 +41,37 @@
             ></b-form-input>
           </b-form-group>
         </b-col>
+        <b-col>
+          <b-form-group
+            label="종료 속도(s)"
+            description="1보다 큰 정수만 가능. 1초 단위로 입력. 한 줄씩 지워지는 속도."
+            :invalid-feedback="'입력 값 범위를 확인하세요'"
+          >
+            <b-form-input
+              type="number"
+              v-model="config.tempEndSpeed"
+              :state="stateEndSpeed"
+            ></b-form-input>
+          </b-form-group>
+        </b-col>
+        <b-col>
+          <b-form-group
+            label="대기 시간(s)"
+            description="1보다 큰 정수만 가능. 1초 단위로 입력. 다음 스테이지로 넘어가기 전 대기하는 시간."
+            :invalid-feedback="'입력 값 범위를 확인하세요'"
+          >
+            <b-form-input
+              type="number"
+              v-model="config.tempWaitTime"
+              :state="stateWaitTime"
+            ></b-form-input>
+          </b-form-group>
+        </b-col>
       </b-form-row>
 
       <b-form-row>
         <b-col>
-          <b-form-group label="블럭 색상">
+          <b-form-group label="블럭색">
             <b-form-input
               type="color"
               v-model="config.blockColor"
@@ -53,18 +79,15 @@
           </b-form-group>
         </b-col>
         <b-col>
-          <b-form-group label="그리드 색상">
+          <b-form-group label="그리드색">
             <b-form-input
               type="color"
               v-model="config.inputGridColor"
             ></b-form-input>
           </b-form-group>
         </b-col>
-      </b-form-row>
-
-      <b-form-row>
         <b-col>
-          <b-form-group label="배경 색상">
+          <b-form-group label="배경색">
             <b-form-input
               type="color"
               v-model="config.inputBackgroundColor"
@@ -72,10 +95,18 @@
           </b-form-group>
         </b-col>
         <b-col>
-          <b-form-group label="여백 색상">
+          <b-form-group label="여백색">
             <b-form-input
               type="color"
               v-model="config.inputMarginColor"
+            ></b-form-input>
+          </b-form-group>
+        </b-col>
+        <b-col>
+          <b-form-group label="종료색">
+            <b-form-input
+              type="color"
+              v-model="config.inputEndColor"
             ></b-form-input>
           </b-form-group>
         </b-col>
@@ -107,13 +138,18 @@
           tempLatitude: 0,
           tempLongitude: 0,
           endSpeed: 1000, // 스테이지 종료 속도
+          waitTime: 10000, // 다음 스테이지 시작전 대기 시간
+          tempEndSpeed: 1,
+          tempWaitTime: 10,
           speed: 90, // 실제 블럭 속도
           count: 20, // 실제 블럭 수
           blockColor: '#000000',
           gridColor: '#808080',
+          endColor: '#000000',
           inputGridColor: '#808080',
           inputBackgroundColor: '#ffffff',
           inputMarginColor: '#ffffff',
+          inputEndColor: '#000000',
           boardStyle: {
             backgroundColor: '#ffffff',
           },
@@ -164,6 +200,12 @@
           Math.floor(Math.abs(this.config.tempLatitude / 13)) + 1
         } 단계 속도가 적용됩니다.`
       },
+      stateEndSpeed() {
+        return this.config.tempEndSpeed >= 1
+      },
+      stateWaitTime() {
+        return this.config.tempWaitTime >= 1
+      },
     },
     created() {
       // resize 이벤트 리스너 등록
@@ -183,6 +225,7 @@
     },
     methods: {
       init() {
+        // 여백색을 지정하기 위해서 설정. 태그의 높이가 0으로 설정돼있음.
         this.config.bodyStyle.height = window.innerHeight + 'px'
 
         this.setBoardSize()
@@ -265,14 +308,15 @@
         // ctx.scale 재설정
         ctx.scale(this.blockSize, this.blockSize)
       },
-      endStage(position) {
+      // 게임 종료 액션, 한 줄씩 지정된 색으로 덮어진다.
+      endStage(position, count, reverse = false) {
         let board
         position === 'top'
           ? (board = this.topBoard)
           : (board = this.bottomBoard)
 
-        board.setEndRow(0)
-        board.drawBoard(true)
+        board.setEndRow(count, reverse)
+        board.drawBoard(true, this.config.endColor)
       },
       down(position, reverse = false) {
         let ctx
@@ -323,24 +367,16 @@
       },
       restart() {
         this.end = false
+        this.endCount = 0
         this.isPause = false
         this.isPauseR = false
         this.topBoard.reset()
         this.bottomBoard.reset()
         this.initBlock('top')
         this.initBlock('bottom', true)
+        this.resetInterval()
       },
       resetInterval() {
-        // 스테이지 종료 인터벌
-        clearInterval(this.endInterval)
-        this.endInterval = setInterval(() => {
-          // [NOW] 한줄씩 처리하는 방법 고민중
-          if (this.end && this.endCount < this.blockSize / 2) {
-            this.endStage('top')
-            this.endStage('bottom')
-          }
-        }, this.config.endSpeed)
-
         // 블럭을 떨어뜨리는 인터벌
         clearInterval(this.downInterval)
         this.downInterval = setInterval(() => {
@@ -348,6 +384,33 @@
           this.down('top')
           this.down('bottom', true)
         }, this.config.speed)
+
+        // 스테이지 종료 인터벌
+        clearInterval(this.endInterval)
+        this.endInterval = setInterval(() => {
+          if (this.end) {
+            if (this.endCount < this.config.count / 2) {
+              // 위에서 아래로 한칸씩 지워 나간다.
+              console.log(
+                `스테이지 종료중 -> ${this.endCount} / ${
+                  this.config.count / 2 - 1
+                }`,
+              )
+              this.endStage('top', this.endCount)
+              this.endStage('bottom', this.endCount, true)
+              this.endCount++
+            } else {
+              // 모두 지워지면
+              console.log(
+                `다음 스테이지 대기중 -> ${this.config.waitTime / 1000}s`,
+              )
+              this.end = false
+              setTimeout(() => {
+                this.restart()
+              }, this.config.waitTime)
+            }
+          }
+        }, this.config.endSpeed)
       },
       handleKey(e) {
         if (e.code === 'KeyP') {
@@ -367,7 +430,13 @@
         this.alert = false
       },
       handleOK(evt) {
-        if (this.stateLatitude && this.stateLongitude) {
+        if (
+          this.stateLatitude &&
+          this.stateLongitude &&
+          this.stateEndSpeed &&
+          this.stateWaitTime
+        ) {
+          // 속도 및 크기 설정
           // 환경 설정 창에서 보여줄 값
           this.config.latitude = this.config.tempLatitude
           this.config.longitude = this.config.tempLongitude
@@ -377,13 +446,17 @@
             speedArr[Math.floor(Math.abs(this.config.tempLatitude / 13))]
           this.config.count = this.calculateLongitude
 
+          // 색상 설정
           this.config.gridColor = this.config.inputGridColor
-
+          this.config.endColor = this.config.inputEndColor
           this.config.boardStyle.backgroundColor = this.config.inputBackgroundColor
           this.config.bodyStyle.backgroundColor = this.config.inputMarginColor
 
+          // 종료 및 스테이지 대기 시간 설정
+          this.config.endSpeed = this.config.tempEndSpeed * 1000
+          this.config.waitTime = this.config.tempWaitTime * 1000
+
           this.init()
-          this.resetInterval()
           this.restart()
         } else {
           evt.preventDefault()
@@ -391,8 +464,11 @@
         }
       },
       handleHide() {
-        this.isPause = false
-        this.isPauseR = false
+        console.log('handleHide')
+        if (!this.alert) {
+          this.isPause = false
+          this.isPauseR = false
+        }
       },
     },
   }

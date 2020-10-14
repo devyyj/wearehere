@@ -54,17 +54,18 @@ class Board {
     })
   }
 
-  drawBoard(isEnd = false) {
+  drawBoard(isEnd = false, endColor) {
     this.board.forEach((row, y) => {
       row.forEach((value, x) => {
+        // 블럭을 그린다.
         if (!isEnd && value > 0) {
           this.ctx.fillStyle = this.color
           this.ctx.fillRect(x, y, 1, 1)
         }
-
+        // 스테이지가 종료되면 한줄씩 지운다.
         if (isEnd && value < 0) {
-          this.ctx.fillStyle = 'red'
-          this.ctx.fillRect(x, y, 1, 1)
+          this.ctx.fillStyle = endColor
+          this.ctx.fillRect(x, y, 1.1, 1.1) // 1.1이 아닌 1로 설정하면 가장 오른쪽과 아래에 1픽셀씩 남는다.
         }
       })
     })
@@ -75,8 +76,13 @@ class Board {
     else return this.board[0].every((x) => x > 0)
   }
 
-  setEndRow(index) {
-    this.board[index] = this.board[index].map((x) => (x = -1))
+  // 배열의 값을 -1 로 설정한다.
+  setEndRow(index, reverse) {
+    if (!reverse) this.board[index] = this.board[index].map((x) => (x = -1))
+    else
+      this.board[this.board.length - index - 1] = this.board[
+        this.board.length - index - 1
+      ].map((x) => (x = -1))
   }
 }
 
