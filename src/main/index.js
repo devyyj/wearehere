@@ -31,6 +31,8 @@ function createWindow () {
   mainWindow.on('closed', () => {
     mainWindow = null
   })
+
+  // mainWindow.setFullScreen(true)
 }
 
 app.on('ready', createWindow)

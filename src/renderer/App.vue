@@ -22,7 +22,7 @@
           >
             <b-form-input
               type="number"
-              v-model="config.tempLatitude"
+              v-model="config.inputLatitude"
               :state="stateLatitude"
             ></b-form-input>
           </b-form-group>
@@ -36,33 +36,33 @@
           >
             <b-form-input
               type="number"
-              v-model="config.tempLongitude"
+              v-model="config.inputLongitude"
               :state="stateLongitude"
             ></b-form-input>
           </b-form-group>
         </b-col>
         <b-col>
           <b-form-group
-            label="종료 속도(s)"
-            description="1보다 큰 정수만 가능. 1초 단위로 입력. 한 줄씩 지워지는 속도."
+            label="종료 속도(초)"
+            description="한 줄씩 지워지는 속도. 0보다 큰 실수 입력 가능. ex) 0.5"
             :invalid-feedback="'입력 값 범위를 확인하세요'"
           >
             <b-form-input
               type="number"
-              v-model="config.tempEndSpeed"
+              v-model="config.inputEndSpeed"
               :state="stateEndSpeed"
             ></b-form-input>
           </b-form-group>
         </b-col>
         <b-col>
           <b-form-group
-            label="대기 시간(s)"
-            description="1보다 큰 정수만 가능. 1초 단위로 입력. 다음 스테이지로 넘어가기 전 대기하는 시간."
+            label="대기 시간(초)"
+            description="다음 스테이지로 넘어가기 전 대기하는 시간. 1보다 큰 실수 입력 가능."
             :invalid-feedback="'입력 값 범위를 확인하세요'"
           >
             <b-form-input
               type="number"
-              v-model="config.tempWaitTime"
+              v-model="config.inputWaitTime"
               :state="stateWaitTime"
             ></b-form-input>
           </b-form-group>
@@ -74,7 +74,7 @@
           <b-form-group label="블럭색">
             <b-form-input
               type="color"
-              v-model="config.blockColor"
+              v-model="config.inputBlockColor"
             ></b-form-input>
           </b-form-group>
         </b-col>
@@ -84,6 +84,14 @@
               type="color"
               v-model="config.inputGridColor"
             ></b-form-input>
+            <b-form-checkbox
+              id="checkbox-1"
+              v-model="config.inputHiddenGrid"
+              value="true"
+              unchecked-value="false"
+            >
+              투명
+            </b-form-checkbox>
           </b-form-group>
         </b-col>
         <b-col>
@@ -115,6 +123,19 @@
       <b-alert v-if="alert" show variant="danger"
         >유효하지 않은 값이 있습니다.</b-alert
       >
+      <hr />
+      <b-row>
+        <b-col
+          ><b-button block variant="outline-primary" @click="handleSave()"
+            >저장하기</b-button
+          ></b-col
+        >
+        <b-col
+          ><b-button block variant="outline-primary" @click="handleLoad()"
+            >불러오기</b-button
+          ></b-col
+        >
+      </b-row>
     </b-modal>
   </div>
 </template>
@@ -122,6 +143,9 @@
 <script>
   import Board from './board'
   import Block from './block'
+  import fs from 'fs'
+  const {dialog} = require('electron').remote
+  const electron = require('electron')
 
   export default {
     name: 'wearehere',
@@ -135,21 +159,13 @@
           size: 0, // board 크기
           latitude: 90, // 위도, 속도, 입력값 범위 : 0-90
           longitude: 0, // 경도, 블럭수, 입력값 범위 : 0-180
-          tempLatitude: 0,
-          tempLongitude: 0,
           endSpeed: 1000, // 스테이지 종료 속도
           waitTime: 10000, // 다음 스테이지 시작전 대기 시간
-          tempEndSpeed: 1,
-          tempWaitTime: 10,
           speed: 90, // 실제 블럭 속도
           count: 20, // 실제 블럭 수
           blockColor: '#000000',
           gridColor: '#808080',
           endColor: '#000000',
-          inputGridColor: '#808080',
-          inputBackgroundColor: '#ffffff',
-          inputMarginColor: '#ffffff',
-          inputEndColor: '#000000',
           boardStyle: {
             backgroundColor: '#ffffff',
           },
@@ -157,6 +173,17 @@
             height: '0px',
             backgroundColor: '#ffffff',
           },
+          hiddenGrid: 'false',
+          inputLatitude: 0,
+          inputLongitude: 0,
+          inputEndSpeed: 0.5,
+          inputWaitTime: 10,
+          inputBlockColor: '#000000',
+          inputGridColor: '#808080',
+          inputEndColor: '#000000',
+          inputBackgroundColor: '#ffffff',
+          inputMarginColor: '#ffffff',
+          inputHiddenGrid: 'false'
         },
         isPause: false,
         isPauseR: false,
@@ -173,14 +200,14 @@
       },
       stateLatitude() {
         return (
-          Math.abs(parseInt(this.config.tempLatitude)) <= 90 &&
-          this.config.tempLatitude.length <= 9
+          Math.abs(parseInt(this.config.inputLatitude)) <= 90 &&
+          this.config.inputLatitude.length <= 9
         )
       },
       stateLongitude() {
         return (
-          Math.abs(parseInt(this.config.tempLongitude)) <= 180 &&
-          this.config.tempLongitude.length <= 10
+          Math.abs(parseInt(this.config.inputLongitude)) <= 180 &&
+          this.config.inputLongitude.length <= 10
         )
       },
       calculateLongitude() {
@@ -189,7 +216,7 @@
         // 180/60 = 3, 경도 범위 1당 블럭 수 1단계씩 올리면 됨.
         // 블럭수 1단계는 2개씩 증가
         return (
-          20 + Math.ceil(Math.abs(parseInt(this.config.tempLongitude)) / 3) * 2
+          20 + Math.ceil(Math.abs(parseInt(this.config.inputLongitude)) / 3) * 2
         )
       },
       validFeedbackLongitude() {
@@ -197,14 +224,14 @@
       },
       validFeedbackLatitude() {
         return `${
-          Math.floor(Math.abs(this.config.tempLatitude / 13)) + 1
+          Math.floor(Math.abs(this.config.inputLatitude / 13)) + 1
         } 단계 속도가 적용됩니다.`
       },
       stateEndSpeed() {
-        return this.config.tempEndSpeed >= 1
+        return this.config.inputEndSpeed > 0
       },
       stateWaitTime() {
-        return this.config.tempWaitTime >= 1
+        return this.config.inputWaitTime >= 1
       },
     },
     created() {
@@ -359,7 +386,7 @@
         // 보드에 쌓인 블럭 그리기
         board.drawBoard()
         // 그리드 그리기
-        this.drawGrid(ctx, reverse)
+        if(this.config.hiddenGrid === 'false') this.drawGrid(ctx, reverse)
       },
       setBoardSize() {
         this.config.size =
@@ -422,11 +449,16 @@
           this.isPause = true
           this.isPauseR = true
           this.$bvModal.show('env')
+        } else if (e.code === 'KeyF') {
+          console.log('keyF')
+          const window = electron.remote.getCurrentWindow()
+          if (window.isFullScreen()) window.setFullScreen(false)
+          else window.setFullScreen(true)
         }
       },
       handleShow() {
-        this.config.tempLatitude = String(this.config.latitude)
-        this.config.tempLongitude = String(this.config.longitude)
+        this.config.inputLatitude = String(this.config.latitude)
+        this.config.inputLongitude = String(this.config.longitude)
         this.alert = false
       },
       handleOK(evt) {
@@ -438,23 +470,26 @@
         ) {
           // 속도 및 크기 설정
           // 환경 설정 창에서 보여줄 값
-          this.config.latitude = this.config.tempLatitude
-          this.config.longitude = this.config.tempLongitude
+          this.config.latitude = this.config.inputLatitude
+          this.config.longitude = this.config.inputLongitude
           // 실제 적용할 값
           const speedArr = [0, 2, 4, 8, 16, 32, 64]
           this.config.speed =
-            speedArr[Math.floor(Math.abs(this.config.tempLatitude / 13))]
+            speedArr[Math.floor(Math.abs(this.config.inputLatitude / 13))]
           this.config.count = this.calculateLongitude
 
           // 색상 설정
+          console.log(this.config.inputHiddenGrid);
+          this.config.blockColor = this.config.inputBlockColor
           this.config.gridColor = this.config.inputGridColor
+          this.config.hiddenGrid = this.config.inputHiddenGrid
           this.config.endColor = this.config.inputEndColor
           this.config.boardStyle.backgroundColor = this.config.inputBackgroundColor
           this.config.bodyStyle.backgroundColor = this.config.inputMarginColor
 
           // 종료 및 스테이지 대기 시간 설정
-          this.config.endSpeed = this.config.tempEndSpeed * 1000
-          this.config.waitTime = this.config.tempWaitTime * 1000
+          this.config.endSpeed = this.config.inputEndSpeed * 1000
+          this.config.waitTime = this.config.inputWaitTime * 1000
 
           this.init()
           this.restart()
@@ -468,6 +503,34 @@
         if (!this.alert) {
           this.isPause = false
           this.isPauseR = false
+        }
+      },
+      handleSave() {
+        console.log('handleSave')
+        let options = {
+          filters: [{name: 'WE ARE HERE File', extensions: ['wah']}],
+        }
+        let savePath = dialog.showSaveDialog(options)
+        if (savePath) {
+          console.log(savePath)
+          fs.writeFileSync(savePath, JSON.stringify(this.config))
+        }
+      },
+      handleLoad() {
+        console.log('handleLoad')
+        let options = {
+          filters: [{name: 'WE ARE HERE File', extensions: ['wah']}],
+        }
+        let loadPath = dialog.showOpenDialog(options)
+        if (loadPath) {
+          console.log(loadPath[0])
+          let contents = JSON.parse(
+            fs.readFileSync(loadPath[0], {encoding: 'utf8'}),
+          )
+          console.log(contents)
+          this.config = contents
+          // 예외처리가 복잡해서 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
+          this.handleOK()
         }
       },
     },
