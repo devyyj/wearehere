@@ -7,6 +7,7 @@
     <b-modal
       id="env"
       centered
+      scrollable
       title="환경설정"
       @show="handleShow"
       @ok="handleOK"
@@ -71,7 +72,7 @@
 
       <b-form-row>
         <b-col>
-          <b-form-group label="블럭색">
+          <b-form-group label="블럭 색">
             <b-form-input
               type="color"
               v-model="config.inputBlockColor"
@@ -79,7 +80,7 @@
           </b-form-group>
         </b-col>
         <b-col>
-          <b-form-group label="그리드색">
+          <b-form-group label="그리드 색">
             <b-form-input
               type="color"
               v-model="config.inputGridColor"
@@ -95,7 +96,7 @@
           </b-form-group>
         </b-col>
         <b-col>
-          <b-form-group label="배경색">
+          <b-form-group label="배경 색">
             <b-form-input
               type="color"
               v-model="config.inputBackgroundColor"
@@ -103,7 +104,7 @@
           </b-form-group>
         </b-col>
         <b-col>
-          <b-form-group label="여백색">
+          <b-form-group label="여백 색">
             <b-form-input
               type="color"
               v-model="config.inputMarginColor"
@@ -111,11 +112,30 @@
           </b-form-group>
         </b-col>
         <b-col>
-          <b-form-group label="종료색">
+          <b-form-group label="종료 색">
             <b-form-input
               type="color"
               v-model="config.inputEndColor"
             ></b-form-input>
+          </b-form-group>
+        </b-col>
+      </b-form-row>
+
+      <b-form-row>
+        <b-col>
+          <b-form-group label="블럭 이미지">
+            <b-form-file
+              multiple
+              accept="image/jpeg, image/png"
+              v-model="config.imagePath"
+            >
+              <template slot="file-name" slot-scope="{names}">
+                <b-badge variant="dark">{{ names[0] }}</b-badge>
+                <b-badge v-if="names.length > 1" variant="dark" class="ml-1">
+                  + {{ names.length - 1 }} More files
+                </b-badge>
+              </template>
+            </b-form-file>
           </b-form-group>
         </b-col>
       </b-form-row>
@@ -174,6 +194,7 @@
             backgroundColor: '#ffffff',
           },
           hiddenGrid: 'false',
+          imagePath: [],
           inputLatitude: 0,
           inputLongitude: 0,
           inputEndSpeed: 0.5,
@@ -183,7 +204,7 @@
           inputEndColor: '#000000',
           inputBackgroundColor: '#ffffff',
           inputMarginColor: '#ffffff',
-          inputHiddenGrid: 'false'
+          inputHiddenGrid: 'false',
         },
         isPause: false,
         isPauseR: false,
@@ -286,7 +307,13 @@
         let y = 0
         if (reverse) y = this.config.count / 2 - 2
         // 블럭 생성
-        let block = new Block(ctx, x, y, this.config.blockColor)
+        let block = new Block(
+          ctx,
+          x,
+          y,
+          this.config.blockColor,
+          this.config.imagePath,
+        )
         block.draw()
         board.block = block
         // 보드에 쌓인 블럭 그리기
@@ -299,6 +326,7 @@
             this.config.count / 2,
             this.config.count,
             this.config.blockColor,
+            this.config.imagePath,
           )
           this.topBoard.ctx = this.topCtx
           this.topBoard.reset()
@@ -307,6 +335,7 @@
             this.config.count / 2,
             this.config.count,
             this.config.blockColor,
+            this.config.imagePath,
           )
           this.bottomBoard.ctx = this.bottomCtx
           this.bottomBoard.reset()
@@ -386,7 +415,7 @@
         // 보드에 쌓인 블럭 그리기
         board.drawBoard()
         // 그리드 그리기
-        if(this.config.hiddenGrid === 'false') this.drawGrid(ctx, reverse)
+        if (this.config.hiddenGrid === 'false') this.drawGrid(ctx, reverse)
       },
       setBoardSize() {
         this.config.size =
@@ -479,7 +508,6 @@
           this.config.count = this.calculateLongitude
 
           // 색상 설정
-          console.log(this.config.inputHiddenGrid);
           this.config.blockColor = this.config.inputBlockColor
           this.config.gridColor = this.config.inputGridColor
           this.config.hiddenGrid = this.config.inputHiddenGrid
@@ -490,6 +518,8 @@
           // 종료 및 스테이지 대기 시간 설정
           this.config.endSpeed = this.config.inputEndSpeed * 1000
           this.config.waitTime = this.config.inputWaitTime * 1000
+
+          console.log(this.config.imagePath)
 
           this.init()
           this.restart()

@@ -1,11 +1,14 @@
+import setImagePath from './image'
+
 class Board {
-  constructor(rows, cols, color = 'green') {
+  constructor(rows, cols, color, imagePath) {
     this.board
     this.rows = rows
     this.cols = cols
     this.block
     this.ctx
     this.color = color
+    this.image = setImagePath(imagePath)
   }
 
   // 새 게임이 시작되면 보드를 초기화한다.
@@ -54,13 +57,16 @@ class Board {
     })
   }
 
+  // ! 여기가 속도가 느려지는 원인이다. 효율적으로 수정해야 한다.
   drawBoard(isEnd = false, endColor) {
     this.board.forEach((row, y) => {
       row.forEach((value, x) => {
         // 블럭을 그린다.
         if (!isEnd && value > 0) {
           this.ctx.fillStyle = this.color
-          this.ctx.fillRect(x, y, 1, 1)
+          if (this.image.length)
+            this.ctx.drawImage(this.image[0], x, y, 1, 1)
+          else this.ctx.fillRect(x, y, 1, 1)
         }
         // 스테이지가 종료되면 한줄씩 지운다.
         if (isEnd && value < 0) {

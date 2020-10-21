@@ -1,10 +1,15 @@
+import setImagePath from './image'
+
+// ! 현재는 이미지 1개만 처리하여 그린다.
+// ! 2개 이상의 이미지도 처리할 수 있도록 수정해야 한다.
+
 class Block {
   x
   y
   shape
   ctx
-
-  constructor(ctx, x, y, color = 'green') {
+  
+  constructor(ctx, x, y, color, imagePath) {
     this.ctx = ctx
     this.spawn()
 
@@ -13,6 +18,7 @@ class Block {
     this.y = y
 
     this.color = color
+    this.image = setImagePath(imagePath)
   }
 
   spawn() {
@@ -25,12 +31,14 @@ class Block {
   draw() {
     this.ctx.fillStyle = this.color
     this.shape.forEach((row, y) => {
-      row.forEach((value, x) => {
+      row.forEach(async (value, x) => {
         // this.x, this.y는 shape의 상단 왼쪽 좌표이다
         // shape 안에 있는 블록 좌표에 x, y를 더한다.
         // 보드에서 블록의 좌표는 this.x + x가 된다.
         if (value > 0) {
-          this.ctx.fillRect(this.x + x, this.y + y, 1, 1)
+          if (this.image.length)
+            this.ctx.drawImage(this.image[0], this.x + x, this.y + y, 1, 1)
+          else this.ctx.fillRect(this.x + x, this.y + y, 1, 1)
         }
       })
     })
