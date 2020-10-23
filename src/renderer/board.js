@@ -1,5 +1,10 @@
 import setImagePath from './image'
 
+/**
+ * -2 : 쌓인 블럭 값
+ * -1 : 종료 효과를 위한 값
+ */
+
 class Board {
   constructor(rows, cols, color, imagePath) {
     this.board
@@ -51,25 +56,26 @@ class Board {
     this.block.shape.forEach((row, y) => {
       row.forEach((value, x) => {
         if (value > 0) {
+          // !
           this.board[y + this.block.y][x + this.block.x] = value
         }
       })
     })
   }
 
-  // ! 여기가 속도가 느려지는 원인이다. 효율적으로 수정해야 한다.
   drawBoard(isEnd = false, endColor) {
     this.board.forEach((row, y) => {
       row.forEach((value, x) => {
         // 블럭을 그린다.
+        // ! 
         if (!isEnd && value > 0) {
           this.ctx.fillStyle = this.color
-          if (this.image.length)
-            this.ctx.drawImage(this.image[0], x, y, 1, 1)
+          if (this.image.length) this.ctx.drawImage(this.image[0], x, y, 1, 1)
           else this.ctx.fillRect(x, y, 1, 1)
+          this.board[y][x] = -2
         }
         // 스테이지가 종료되면 한줄씩 지운다.
-        if (isEnd && value < 0) {
+        if (isEnd && value === -1) {
           this.ctx.fillStyle = endColor
           this.ctx.fillRect(x, y, 1.1, 1.1) // 1.1이 아닌 1로 설정하면 가장 오른쪽과 아래에 1픽셀씩 남는다.
         }
@@ -78,8 +84,8 @@ class Board {
   }
 
   isFullRow(reverse = false) {
-    if (reverse) return this.board[this.rows - 1].every((x) => x > 0)
-    else return this.board[0].every((x) => x > 0)
+    if (reverse) return this.board[this.rows - 1].every((x) => x !== 0)
+    else return this.board[0].every((x) => x !== 0)
   }
 
   // 배열의 값을 -1 로 설정한다.

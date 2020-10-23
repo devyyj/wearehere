@@ -8,7 +8,7 @@ class Block {
   y
   shape
   ctx
-  
+
   constructor(ctx, x, y, color, imagePath) {
     this.ctx = ctx
     this.spawn()
@@ -44,6 +44,20 @@ class Block {
     })
   }
 
+  clear() {
+    this.shape.forEach((row, y) => {
+      row.forEach(async (value, x) => {
+        // this.x, this.y는 shape의 상단 왼쪽 좌표이다
+        // shape 안에 있는 블록 좌표에 x, y를 더한다.
+        // 보드에서 블록의 좌표는 this.x + x가 된다.
+        if (value > 0) {
+          this.ctx.clearRect(this.x + x, this.y + y, 1, 1)
+        }
+      })
+    })
+  }
+
+  // 쓸 이유가 없음
   move(p) {
     this.x = p.x
     this.y = p.y
