@@ -57,10 +57,14 @@ class Block {
     })
   }
 
-  // 쓸 이유가 없음
-  move(p) {
-    this.x = p.x
-    this.y = p.y
+  move(reverse = false) {
+    if (reverse) this.y -= 1
+    else this.y += 1
+  }
+
+  backMove(reverse = false) {
+    if (reverse) this.y += 1
+    else this.y -= 1
   }
 }
 

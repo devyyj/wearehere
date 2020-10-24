@@ -164,6 +164,7 @@
   import Board from './board'
   import Block from './block'
   import fs from 'fs'
+import { time, timeEnd, timeLog } from 'console'
   const {dialog} = require('electron').remote
   const electron = require('electron')
 
@@ -181,8 +182,8 @@
           longitude: 0, // 경도, 블럭수, 입력값 범위 : 0-180
           endSpeed: 1000, // 스테이지 종료 속도
           waitTime: 10000, // 다음 스테이지 시작전 대기 시간
-          speed: 90, // 실제 블럭 속도
-          count: 20, // 실제 블럭 수
+          speed: 0, // 실제 블럭 속도
+          count: 100, // 실제 블럭 수
           blockColor: '#000000',
           gridColor: '#808080',
           endColor: '#000000',
@@ -197,8 +198,8 @@
           imagePath: [],
           inputLatitude: 0,
           inputLongitude: 0,
-          inputEndSpeed: 0.5,
-          inputWaitTime: 5,
+          inputEndSpeed: 0.1,
+          inputWaitTime: 1,
           inputBlockColor: '#000000',
           inputGridColor: '#808080',
           inputEndColor: '#000000',
@@ -269,7 +270,6 @@
       this.bottomCtx = document.getElementById('bottom-board').getContext('2d')
 
       this.init()
-      this.resetInterval()
     },
     methods: {
       init() {
@@ -283,6 +283,8 @@
 
         this.initBlock('top')
         this.initBlock('bottom', true)
+
+        this.resetInterval()
       },
       initBlock(position, reverse = false) {
         let ctx
@@ -294,12 +296,7 @@
           ctx = this.bottomCtx
           board = this.bottomBoard
         }
-        // 선을 그릴때 좌표에 0.5픽셀씩 더하기 때문에 +1을 해준다.
-        // ! 아래 코드를 거치면 캔버스가 모두 지워진다. 아래 코드를 지우면 동작이 이상하다. 원인 파악을 못하겠다!
-        ctx.canvas.width = this.config.size + 1
-        ctx.canvas.height = this.config.size / 2 + 1
-        // 블록의 크기를 변경한다.
-        ctx.scale(this.blockSize, this.blockSize)
+        
         // 시작점 랜덤 지정
         let random = Math.random()
         let time = Date.now()
@@ -307,6 +304,7 @@
         if (x % 2 === 1) x += 1
         let y = 0
         if (reverse) y = this.config.count / 2 - 2
+
         // 블럭 생성
         let block = new Block(
           ctx,
@@ -321,7 +319,7 @@
         // board.drawBoard()
       },
       initBoard(position) {
-        console.log('initBoard')
+        // console.log('initBoard')
         const top = position === 'top' ? true : false
         if (top) {
           this.topBoard = new Board(
@@ -344,6 +342,7 @@
         }
       },
       drawGrid(ctx, reverse = false) {
+        console.time()
         // ctx.scale 초기화
         ctx.resetTransform()
         const size = this.config.size
@@ -365,6 +364,7 @@
         ctx.stroke()
         // ctx.scale 재설정
         ctx.scale(this.blockSize, this.blockSize)
+        console.timeEnd()
       },
       // 게임 종료 액션, 한 줄씩 지정된 색으로 덮어진다.
       endStage(position, count, reverse = false) {
@@ -386,21 +386,10 @@
           ctx = this.bottomCtx
           board = this.bottomBoard
         }
-
-        // 한 칸 내려간 블럭을 그리기 전에 이미 그려진 블럭을 지운다.
-        board.block.clear()
-
-        // todo block.move() 로 대체하여 사용
-        if (reverse) board.block.y -= 1
-        else board.block.y += 1
-
-        if (board.valid(board.block) === false) {
-          // todo block.move() 로 대체 예정
-          if (reverse) board.block.y += 1
-          else board.block.y -= 1
-
+        // 블럭이 계속 움직일 수 있는 지 확인.
+        // 움직일 수 없다면 블럭을 보드에 고정하고 다음 블럭을 생성.
+        if (board.valid(reverse) === false) {
           board.freeze()
-
           // 게임 종료 조건
           if (board.isFullRow(reverse)) {
             reverse ? (this.isPauseR = true) : (this.isPause = true)
@@ -412,12 +401,14 @@
             }
             return
           }
-
+          // 새로운 블럭 생성
           this.initBlock(position, reverse)
         } else {
-          // board.block.clear()
-          // board.block.move(board.block)
-          // ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+          // 현재 블럭을 지운다.
+          // 블럭을 이동한다.
+          // 이동된 블럭을 그린다.
+          board.block.clear()
+          board.block.move(reverse)
           board.block.draw()
         }
         // 보드에 쌓인 블럭 그리기
@@ -430,22 +421,21 @@
           parseInt(window.innerHeight / this.config.count) * this.config.count
 
         // 선을 그릴때 좌표에 0.5픽셀씩 더하기 때문에 +1을 해준다.
-        // this.topCtx.canvas.width = this.config.size + 1
-        // this.topCtx.canvas.height = this.config.size / 2 + 1
+        this.topCtx.canvas.width = this.config.size + 1
+        this.topCtx.canvas.height = this.config.size / 2 + 1
+        this.bottomCtx.canvas.width = this.config.size + 1
+        this.bottomCtx.canvas.height = this.config.size / 2 + 1
 
-        // this.bottomCtx.canvas.width = this.config.size + 1
-        // this.bottomCtx.canvas.height = this.config.size / 2 + 1
+        // 스케일 설정
+        this.topCtx.scale(this.blockSize, this.blockSize)
+        this.bottomCtx.scale(this.blockSize, this.blockSize)
       },
       restart() {
         this.end = false
         this.endCount = 0
         this.isPause = false
         this.isPauseR = false
-        this.topBoard.reset()
-        this.bottomBoard.reset()
-        this.initBlock('top')
-        this.initBlock('bottom', true)
-        this.resetInterval()
+        this.init()
       },
       resetInterval() {
         // 블럭을 떨어뜨리는 인터벌
@@ -536,7 +526,6 @@
 
           console.log(this.config.imagePath)
 
-          this.init()
           this.restart()
         } else {
           evt.preventDefault()

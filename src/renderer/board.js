@@ -27,11 +27,13 @@ class Board {
     return Array.from({length: this.rows}, () => Array(this.cols).fill(0))
   }
 
-  valid(p) {
-    return p.shape.every((row, dy) => {
+  valid(reverse = false) {
+    return this.block.shape.every((row, dy) => {
       return row.every((value, dx) => {
-        let x = p.x + dx
-        let y = p.y + dy
+        let x = this.block.x + dx
+        let y = this.block.y + dy
+        if (reverse) y -= 1
+        else y += 1
         return (
           value === 0 ||
           (this.insideWalls(x) && this.aboveFloor(y) && this.notOccupied(x, y))
@@ -67,7 +69,7 @@ class Board {
     this.board.forEach((row, y) => {
       row.forEach((value, x) => {
         // 블럭을 그린다.
-        // ! 
+        // 한번 그린 블럭은 다시 그리지 않는다.
         if (!isEnd && value > 0) {
           this.ctx.fillStyle = this.color
           if (this.image.length) this.ctx.drawImage(this.image[0], x, y, 1, 1)
