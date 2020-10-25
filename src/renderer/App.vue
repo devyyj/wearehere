@@ -572,6 +572,6 @@
   }
 
   canvas {
-    margin-bottom: -7px;
+    margin-bottom: -8px;
   }
 </style>
