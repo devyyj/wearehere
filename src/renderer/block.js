@@ -11,7 +11,6 @@ class Block {
 
   constructor(ctx, x, y, color, imagePath) {
     this.ctx = ctx
-    this.spawn()
 
     // Starting position.
     this.x = x
@@ -19,16 +18,32 @@ class Block {
 
     this.color = color
     this.image = setImagePath(imagePath)
+
+    this.spawn()
+  }
+
+  // 이미지를 선택했다면 이미지 배열의 인덱스 + 1의 값으로 블럭을 설정한다.
+  // 블럭을 그리는 조건이 value > 0 이고, 배열의 인덱스는 0을 값으로 가질 수 있기 때문에 + 1을 해준다.
+  // 이미지를 그릴때는 인덱스 - 1의 값을 사용한다.
+  randomImage() {
+    return (parseInt(Math.random() * 10) % this.image.length) + 1
   }
 
   spawn() {
-    this.shape = [
-      [1, 1],
-      [1, 1],
-    ]
+    if (this.image.length) {
+      this.shape = [
+        [this.randomImage(), this.randomImage()],
+        [this.randomImage(), this.randomImage()],
+      ]
+    } else {
+      this.shape = [
+        [1, 1],
+        [1, 1],
+      ]
+    }
   }
 
-  draw(size) {
+  draw(size, grid = true) {
     this.ctx.fillStyle = this.color
     this.shape.forEach((row, y) => {
       row.forEach(async (value, x) => {
@@ -39,19 +54,21 @@ class Block {
           if (this.image.length) {
             // 이미지를 그리고
             this.ctx.drawImage(
-              this.image[0],
+              this.image[value - 1],
               (this.x + x) * size,
               (this.y + y) * size,
               size,
               size,
             )
             // 이미지 위에 그리드를 그린다
-            this.ctx.strokeRect(
-              (this.x + x) * size + 0.5,
-              (this.y + y) * size + 0.5,
-              size,
-              size,
-            )
+            if (grid) {
+              this.ctx.strokeRect(
+                (this.x + x) * size + 0.5,
+                (this.y + y) * size + 0.5,
+                size,
+                size,
+              )
+            }
           } else {
             // 블럭을 그리고
             this.ctx.fillRect(
@@ -61,19 +78,21 @@ class Block {
               size,
             )
             // 블럭 위에 그리드를 그린다
-            this.ctx.strokeRect(
-              (this.x + x) * size + 0.5,
-              (this.y + y) * size + 0.5,
-              size,
-              size,
-            )
+            if (grid) {
+              this.ctx.strokeRect(
+                (this.x + x) * size + 0.5,
+                (this.y + y) * size + 0.5,
+                size,
+                size,
+              )
+            }
           }
         }
       })
     })
   }
 
-  clear(size) {
+  clear(size, grid = true) {
     this.shape.forEach((row, y) => {
       row.forEach(async (value, x) => {
         // this.x, this.y는 shape의 상단 왼쪽 좌표이다
@@ -88,12 +107,14 @@ class Block {
             size,
           )
           // 지운 자리에 그리드를 그린다
-          this.ctx.strokeRect(
-            (this.x + x) * size + 0.5,
-            (this.y + y) * size + 0.5,
-            size,
-            size,
-          )
+          if (grid) {
+            this.ctx.strokeRect(
+              (this.x + x) * size + 0.5,
+              (this.y + y) * size + 0.5,
+              size,
+              size,
+            )
+          }
         }
       })
     })

@@ -65,27 +65,16 @@ class Board {
     })
   }
 
-  drawBoard(size, isEnd = false, endColor = undefined) {
-    // console.time('drawBoard')
+  endBoard(size, endColor){
     this.board.forEach((row, y) => {
       row.forEach((value, x) => {
-        // 블럭을 그린다.
-        // 한번 그린 블럭은 다시 그리지 않는다.
-        if (!isEnd && value > 0) {
-          this.ctx.fillStyle = this.color
-          if (this.image.length)
-            this.ctx.drawImage(this.image[0], x * size, y * size, size, size)
-          else this.ctx.fillRect(x * size, y * size, size, size)
-          this.board[y][x] = -2
-        }
         // 스테이지가 종료되면 한줄씩 지운다.
-        if (isEnd && value === -1) {
+        if (value === -1) {
           this.ctx.fillStyle = endColor
           this.ctx.fillRect(x * size, y * size, size + 1, size + 1)
         }
       })
     })
-    // console.timeEnd('drawBoard')
   }
 
   isFullRow(reverse = false) {
@@ -100,6 +89,13 @@ class Board {
       this.board[this.board.length - index - 1] = this.board[
         this.board.length - index - 1
       ].map((x) => (x = -1))
+  }
+
+  // reverse === true 일때 y에 +1을 하지 않으면
+  // bottom canvas 제일 마지막 줄이 채워지지 않는다. -> 스테이지가 끝나지 않음
+  emptyCheck(p, reverse) {
+    if (reverse) return this.board[p.y + 1][p.x] === 0
+    else return this.board[p.y][p.x] === 0
   }
 }
 

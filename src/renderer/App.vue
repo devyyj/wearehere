@@ -87,11 +87,11 @@
             ></b-form-input>
             <b-form-checkbox
               id="checkbox-1"
-              v-model="config.inputHiddenGrid"
-              value="true"
-              unchecked-value="false"
+              v-model="config.inputDrawGrid"
+              :value="true"
+              :unchecked-value="false"
             >
-              투명
+              그리기
             </b-form-checkbox>
           </b-form-group>
         </b-col>
@@ -128,6 +128,8 @@
               multiple
               accept="image/jpeg, image/png"
               v-model="config.imagePath"
+              :placeholder="countImageFile"
+              browse-text="이미지 찾기"
             >
               <template slot="file-name" slot-scope="{names}">
                 <b-badge variant="dark">{{ names[0] }}</b-badge>
@@ -180,8 +182,8 @@
           size: 0, // board 크기
           latitude: 90, // 위도, 속도, 입력값 범위 : 0-90
           longitude: 0, // 경도, 블럭수, 입력값 범위 : 0-180
-          endSpeed: 1000, // 스테이지 종료 속도
-          waitTime: 10000, // 다음 스테이지 시작전 대기 시간
+          endSpeed: 100, // 스테이지 종료 속도
+          waitTime: 1000, // 다음 스테이지 시작전 대기 시간
           speed: 90, // 실제 블럭 속도
           count: 20, // 실제 블럭 수
           blockColor: '#000000',
@@ -194,7 +196,7 @@
             height: '0px',
             backgroundColor: '#ffffff',
           },
-          hiddenGrid: 'false',
+          drawGrid: true,
           imagePath: [],
           inputLatitude: 0,
           inputLongitude: 0,
@@ -205,7 +207,7 @@
           inputEndColor: '#000000',
           inputBackgroundColor: '#ffffff',
           inputMarginColor: '#ffffff',
-          inputHiddenGrid: 'false',
+          inputDrawGrid: true,
         },
         isPause: false,
         isPauseR: false,
@@ -255,6 +257,9 @@
       stateWaitTime() {
         return this.config.inputWaitTime >= 1
       },
+      countImageFile() {
+        return `${this.config.imagePath.length}개의 이미지를 사용중입니다.`
+      }
     },
     created() {
       // resize 이벤트 리스너 등록
@@ -296,7 +301,6 @@
           ctx = this.bottomCtx
           board = this.bottomBoard
         }
-
         // 시작점 랜덤 지정
         let random = Math.random()
         let time = Date.now()
@@ -304,7 +308,6 @@
         if (x % 2 === 1) x += 1
         let y = 0
         if (reverse) y = this.config.count / 2 - 2
-
         // 블럭 생성
         let block = new Block(
           ctx,
@@ -313,8 +316,11 @@
           this.config.blockColor,
           this.config.imagePath,
         )
-        block.draw(this.blockSize)
-        board.block = block
+        // 비어 있는 공간에만 블럭을 그린다.
+        if (board.emptyCheck(block, reverse)) {
+          board.block = block
+          block.draw(this.blockSize, this.config.drawGrid)
+        }
       },
       initBoard(reverse = false) {
         if (reverse === false) {
@@ -338,9 +344,11 @@
         }
 
         // canvas 전체에 그리드를 그린다
-        let ctx
-        reverse === false ? (ctx = this.topCtx) : (ctx = this.bottomCtx)
-        this.drawGrid(ctx, reverse)
+        if (this.config.drawGrid) {
+          let ctx
+          reverse === false ? (ctx = this.topCtx) : (ctx = this.bottomCtx)
+          this.drawGrid(ctx, reverse)
+        }
       },
       drawGrid(ctx, reverse = false) {
         const size = this.config.size
@@ -367,7 +375,7 @@
         reverse === false ? (board = this.topBoard) : (board = this.bottomBoard)
 
         board.setEndRow(count, reverse)
-        board.drawBoard(this.blockSize, true, this.config.endColor)
+        board.endBoard(this.blockSize, this.config.endColor)
       },
       down(reverse = false) {
         let ctx
@@ -400,12 +408,10 @@
           // 현재 블럭을 지운다.
           // 블럭을 이동한다.
           // 이동된 블럭을 그린다.
-          board.block.clear(this.blockSize)
+          board.block.clear(this.blockSize, this.config.drawGrid)
           board.block.move(reverse)
-          board.block.draw(this.blockSize)
-        }
-        // 보드에 쌓인 블럭 그리기
-        board.drawBoard()
+          board.block.draw(this.blockSize, this.config.drawGrid)
+        }        
       },
       setBoardSize() {
         this.config.size =
@@ -500,7 +506,7 @@
           // 색상 설정
           this.config.blockColor = this.config.inputBlockColor
           this.config.gridColor = this.config.inputGridColor
-          this.config.hiddenGrid = this.config.inputHiddenGrid
+          this.config.drawGrid = this.config.inputDrawGrid
           this.config.endColor = this.config.inputEndColor
           this.config.boardStyle.backgroundColor = this.config.inputBackgroundColor
           this.config.bodyStyle.backgroundColor = this.config.inputMarginColor
