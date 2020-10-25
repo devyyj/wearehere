@@ -164,7 +164,7 @@
   import Board from './board'
   import Block from './block'
   import fs from 'fs'
-import { time, timeEnd, timeLog } from 'console'
+  import {time, timeEnd, timeLog} from 'console'
   const {dialog} = require('electron').remote
   const electron = require('electron')
 
@@ -182,8 +182,8 @@ import { time, timeEnd, timeLog } from 'console'
           longitude: 0, // 경도, 블럭수, 입력값 범위 : 0-180
           endSpeed: 1000, // 스테이지 종료 속도
           waitTime: 10000, // 다음 스테이지 시작전 대기 시간
-          speed: 0, // 실제 블럭 속도
-          count: 100, // 실제 블럭 수
+          speed: 90, // 실제 블럭 속도
+          count: 20, // 실제 블럭 수
           blockColor: '#000000',
           gridColor: '#808080',
           endColor: '#000000',
@@ -278,25 +278,25 @@ import { time, timeEnd, timeLog } from 'console'
 
         this.setBoardSize()
 
-        this.initBoard('top')
-        this.initBoard('bottom')
+        this.initBoard()
+        this.initBoard(true)
 
-        this.initBlock('top')
-        this.initBlock('bottom', true)
+        this.initBlock()
+        this.initBlock(true)
 
         this.resetInterval()
       },
-      initBlock(position, reverse = false) {
+      initBlock(reverse = false) {
         let ctx
         let board
-        if (position === 'top') {
+        if (reverse === false) {
           ctx = this.topCtx
           board = this.topBoard
         } else {
           ctx = this.bottomCtx
           board = this.bottomBoard
         }
-        
+
         // 시작점 랜덤 지정
         let random = Math.random()
         let time = Date.now()
@@ -313,15 +313,11 @@ import { time, timeEnd, timeLog } from 'console'
           this.config.blockColor,
           this.config.imagePath,
         )
-        block.draw()
+        block.draw(this.blockSize)
         board.block = block
-        // 보드에 쌓인 블럭 그리기
-        // board.drawBoard()
       },
-      initBoard(position) {
-        // console.log('initBoard')
-        const top = position === 'top' ? true : false
-        if (top) {
+      initBoard(reverse = false) {
+        if (reverse === false) {
           this.topBoard = new Board(
             this.config.count / 2,
             this.config.count,
@@ -340,11 +336,13 @@ import { time, timeEnd, timeLog } from 'console'
           this.bottomBoard.ctx = this.bottomCtx
           this.bottomBoard.reset()
         }
+
+        // canvas 전체에 그리드를 그린다
+        let ctx
+        reverse === false ? (ctx = this.topCtx) : (ctx = this.bottomCtx)
+        this.drawGrid(ctx, reverse)
       },
       drawGrid(ctx, reverse = false) {
-        console.time()
-        // ctx.scale 초기화
-        ctx.resetTransform()
         const size = this.config.size
         // 세로 선
         for (let x = 0; x <= size; x += this.blockSize) {
@@ -362,24 +360,19 @@ import { time, timeEnd, timeLog } from 'console'
         }
         ctx.strokeStyle = this.config.gridColor
         ctx.stroke()
-        // ctx.scale 재설정
-        ctx.scale(this.blockSize, this.blockSize)
-        console.timeEnd()
       },
       // 게임 종료 액션, 한 줄씩 지정된 색으로 덮어진다.
-      endStage(position, count, reverse = false) {
+      endStage(count, reverse = false) {
         let board
-        position === 'top'
-          ? (board = this.topBoard)
-          : (board = this.bottomBoard)
+        reverse === false ? (board = this.topBoard) : (board = this.bottomBoard)
 
         board.setEndRow(count, reverse)
-        board.drawBoard(true, this.config.endColor)
+        board.drawBoard(this.blockSize, true, this.config.endColor)
       },
-      down(position, reverse = false) {
+      down(reverse = false) {
         let ctx
         let board
-        if (position === 'top') {
+        if (reverse === false) {
           ctx = this.topCtx
           board = this.topBoard
         } else {
@@ -402,33 +395,26 @@ import { time, timeEnd, timeLog } from 'console'
             return
           }
           // 새로운 블럭 생성
-          this.initBlock(position, reverse)
+          this.initBlock(reverse)
         } else {
           // 현재 블럭을 지운다.
           // 블럭을 이동한다.
           // 이동된 블럭을 그린다.
-          board.block.clear()
+          board.block.clear(this.blockSize)
           board.block.move(reverse)
-          board.block.draw()
+          board.block.draw(this.blockSize)
         }
         // 보드에 쌓인 블럭 그리기
         board.drawBoard()
-        // 그리드 그리기
-        if (this.config.hiddenGrid === 'false') this.drawGrid(ctx, reverse)
       },
       setBoardSize() {
         this.config.size =
           parseInt(window.innerHeight / this.config.count) * this.config.count
-
         // 선을 그릴때 좌표에 0.5픽셀씩 더하기 때문에 +1을 해준다.
         this.topCtx.canvas.width = this.config.size + 1
         this.topCtx.canvas.height = this.config.size / 2 + 1
         this.bottomCtx.canvas.width = this.config.size + 1
         this.bottomCtx.canvas.height = this.config.size / 2 + 1
-
-        // 스케일 설정
-        this.topCtx.scale(this.blockSize, this.blockSize)
-        this.bottomCtx.scale(this.blockSize, this.blockSize)
       },
       restart() {
         this.end = false
@@ -442,10 +428,9 @@ import { time, timeEnd, timeLog } from 'console'
         clearInterval(this.downInterval)
         this.downInterval = setInterval(() => {
           if (this.isPause && this.isPauseR) return
-          this.down('top')
-          this.down('bottom', true)
+          this.down()
+          this.down(true)
         }, this.config.speed)
-
         // 스테이지 종료 인터벌
         clearInterval(this.endInterval)
         this.endInterval = setInterval(() => {
@@ -457,8 +442,8 @@ import { time, timeEnd, timeLog } from 'console'
                   this.config.count / 2 - 1
                 }`,
               )
-              this.endStage('top', this.endCount)
-              this.endStage('bottom', this.endCount, true)
+              this.endStage(this.endCount)
+              this.endStage(this.endCount, true)
               this.endCount++
             } else {
               // 모두 지워지면

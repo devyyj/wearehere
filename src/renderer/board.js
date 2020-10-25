@@ -65,24 +65,27 @@ class Board {
     })
   }
 
-  drawBoard(isEnd = false, endColor) {
+  drawBoard(size, isEnd = false, endColor = undefined) {
+    // console.time('drawBoard')
     this.board.forEach((row, y) => {
       row.forEach((value, x) => {
         // 블럭을 그린다.
         // 한번 그린 블럭은 다시 그리지 않는다.
         if (!isEnd && value > 0) {
           this.ctx.fillStyle = this.color
-          if (this.image.length) this.ctx.drawImage(this.image[0], x, y, 1, 1)
-          else this.ctx.fillRect(x, y, 1, 1)
+          if (this.image.length)
+            this.ctx.drawImage(this.image[0], x * size, y * size, size, size)
+          else this.ctx.fillRect(x * size, y * size, size, size)
           this.board[y][x] = -2
         }
         // 스테이지가 종료되면 한줄씩 지운다.
         if (isEnd && value === -1) {
           this.ctx.fillStyle = endColor
-          this.ctx.fillRect(x, y, 1.1, 1.1) // 1.1이 아닌 1로 설정하면 가장 오른쪽과 아래에 1픽셀씩 남는다.
+          this.ctx.fillRect(x * size, y * size, size + 1, size + 1)
         }
       })
     })
+    // console.timeEnd('drawBoard')
   }
 
   isFullRow(reverse = false) {
