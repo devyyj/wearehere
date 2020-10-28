@@ -1,8 +1,3 @@
-import setImagePath from './image'
-
-// ! 현재는 이미지 1개만 처리하여 그린다.
-// ! 2개 이상의 이미지도 처리할 수 있도록 수정해야 한다.
-
 class Block {
   x
   y
@@ -17,7 +12,7 @@ class Block {
     this.y = y
 
     this.color = color
-    this.image = setImagePath(imagePath)
+    this.image = imagePath
 
     this.spawn()
   }

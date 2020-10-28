@@ -1,5 +1,3 @@
-import setImagePath from './image'
-
 /**
  * -2 : 쌓인 블럭 값
  * -1 : 종료 효과를 위한 값
@@ -13,7 +11,7 @@ class Board {
     this.block
     this.ctx
     this.color = color
-    this.image = setImagePath(imagePath)
+    this.image = imagePath
   }
 
   // 새 게임이 시작되면 보드를 초기화한다.
@@ -58,7 +56,6 @@ class Board {
     this.block.shape.forEach((row, y) => {
       row.forEach((value, x) => {
         if (value > 0) {
-          // !
           this.board[y + this.block.y][x + this.block.x] = value
         }
       })

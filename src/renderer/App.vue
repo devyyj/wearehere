@@ -127,7 +127,7 @@
             <b-form-file
               multiple
               accept="image/jpeg, image/png"
-              v-model="config.imagePath"
+              v-model="config.inputImagePath"
               :placeholder="countImageFile"
               browse-text="이미지 찾기"
             >
@@ -167,6 +167,9 @@
   import Block from './block'
   import fs from 'fs'
   import {time, timeEnd, timeLog} from 'console'
+  import * as _ from 'lodash'
+  
+  const du = require('datauri/sync')
   const {dialog} = require('electron').remote
   const electron = require('electron')
 
@@ -198,6 +201,7 @@
           },
           drawGrid: true,
           imagePath: [],
+          inputImagePath: [],
           inputLatitude: 0,
           inputLongitude: 0,
           inputEndSpeed: 0.1,
@@ -258,8 +262,8 @@
         return this.config.inputWaitTime >= 1
       },
       countImageFile() {
-        return `${this.config.imagePath.length}개의 이미지를 사용중입니다.`
-      }
+        return `${this.config.inputImagePath.length}개의 이미지가 선택되어있습니다.`
+      },
     },
     created() {
       // resize 이벤트 리스너 등록
@@ -411,7 +415,7 @@
           board.block.clear(this.blockSize, this.config.drawGrid)
           board.block.move(reverse)
           board.block.draw(this.blockSize, this.config.drawGrid)
-        }        
+        }
       },
       setBoardSize() {
         this.config.size =
@@ -464,6 +468,14 @@
           }
         }, this.config.endSpeed)
       },
+      // 이미지를 미리 로딩해 둔다, 아니면 이미지를 매번 로딩해서 깜빡거림
+      setImagePath(imagePath) {
+        return imagePath.map((x) => {
+          let img = new Image()
+          img.src = du(x).content
+          return img
+        })
+      },
       handleKey(e) {
         if (e.code === 'KeyP') {
           this.isPause = !this.isPause
@@ -515,7 +527,13 @@
           this.config.endSpeed = this.config.inputEndSpeed * 1000
           this.config.waitTime = this.config.inputWaitTime * 1000
 
-          console.log(this.config.imagePath)
+          // 이미지 로드
+          // ! 이미지 저장/불러오기 할때 취소/확인에 따라 예외가 너무 많이 발생한다.
+          // ! 환경설정 파일 저장한 뒤에 취소 버튼을 누르면 에러 발생
+          if (this.config.inputImagePath.length)
+            this.config.imagePath = this.setImagePath(
+              this.config.inputImagePath.map((x) => x.path),
+            )
 
           this.restart()
         } else {
@@ -537,8 +555,17 @@
         }
         let savePath = dialog.showSaveDialog(options)
         if (savePath) {
-          console.log(savePath)
-          fs.writeFileSync(savePath, JSON.stringify(this.config))
+          console.log(`save file path : ${savePath}`)
+          // 파일 오브젝트에서 path만 배열로 저장
+          this.config.imagePath = this.config.inputImagePath.map((x) => x.path)
+          let copyConfig = _.cloneDeep(this.config)
+          // inputImagePath에 저장되는 File 오브젝트는 stringify 함수로 변환되지 않는다.
+          // 배열안에 빈 오브젝트가 생성되는데 이 데이터를 load 할때 그대로 inputImagePath에 대입하면 warnning이 발생한다.
+          // 따라서 빈 배열을 넣어준다.
+          copyConfig.inputImagePath = []
+          let jsonConfig = JSON.stringify(copyConfig)
+          console.log(`save json file : ${jsonConfig}`)
+          fs.writeFileSync(savePath, jsonConfig)
         }
       },
       handleLoad() {
@@ -548,14 +575,13 @@
         }
         let loadPath = dialog.showOpenDialog(options)
         if (loadPath) {
-          console.log(loadPath[0])
-          let contents = JSON.parse(
-            fs.readFileSync(loadPath[0], {encoding: 'utf8'}),
-          )
-          console.log(contents)
+          console.log(`load file path : ${loadPath[0]}`)
+          let readFile = fs.readFileSync(loadPath[0], {encoding: 'utf8'})
+          console.log(`load file data : ${readFile}`)
+          let contents = JSON.parse(readFile)
+          contents.imagePath = this.setImagePath(contents.imagePath)
           this.config = contents
-          // 예외처리가 복잡해서 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
-          this.handleOK()
+          this.handleOK() // 예외처리가 복잡해서 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
         }
       },
     },
