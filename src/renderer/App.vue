@@ -123,22 +123,17 @@
 
       <b-form-row>
         <b-col>
-          <b-form-group label="블럭 이미지">
-            <b-form-file
-              multiple
-              accept="image/jpeg, image/png"
-              v-model="config.inputImagePath"
-              :placeholder="countImageFile"
-              browse-text="이미지 찾기"
-            >
-              <template slot="file-name" slot-scope="{names}">
-                <b-badge variant="dark">{{ names[0] }}</b-badge>
-                <b-badge v-if="names.length > 1" variant="dark" class="ml-1">
-                  + {{ names.length - 1 }} More files
-                </b-badge>
-              </template>
-            </b-form-file>
-          </b-form-group>
+          <b-button variant="outline-dark" block @click="handleGetImagePath()"
+            >블럭 이미지 선택</b-button
+          >
+        </b-col>
+        <b-col>
+          <b-button
+            variant="outline-danger"
+            block
+            @click="handleInitImagePath()"
+            >블럭 이미지 초기화</b-button
+          >
         </b-col>
       </b-form-row>
 
@@ -146,7 +141,7 @@
         >유효하지 않은 값이 있습니다.</b-alert
       >
       <hr />
-      <b-row>
+      <b-form-row>
         <b-col
           ><b-button block variant="outline-primary" @click="handleSave()"
             >저장하기</b-button
@@ -157,7 +152,7 @@
             >불러오기</b-button
           ></b-col
         >
-      </b-row>
+      </b-form-row>
     </b-modal>
   </div>
 </template>
@@ -168,7 +163,7 @@
   import fs from 'fs'
   import {time, timeEnd, timeLog} from 'console'
   import * as _ from 'lodash'
-  
+
   const du = require('datauri/sync')
   const {dialog} = require('electron').remote
   const electron = require('electron')
@@ -262,7 +257,10 @@
         return this.config.inputWaitTime >= 1
       },
       countImageFile() {
-        return `${this.config.inputImagePath.length}개의 이미지가 선택되어있습니다.`
+        const count = this.config.inputImagePath.length
+          ? this.config.inputImagePath.length
+          : this.config.imagePath.length
+        return `${count}개의 이미지가 선택되어있습니다.`
       },
     },
     created() {
@@ -470,11 +468,29 @@
       },
       // 이미지를 미리 로딩해 둔다, 아니면 이미지를 매번 로딩해서 깜빡거림
       setImagePath(imagePath) {
-        return imagePath.map((x) => {
-          let img = new Image()
-          img.src = du(x).content
-          return img
+        console.log(`setImagePath`)
+        let allExists = true
+        let msg = ''
+        let tempPath = imagePath.map((x) => {
+          if (fs.existsSync(x)) {
+            let img = new Image()
+            img.src = du(x).content
+            return img
+          } else {
+            allExists = false
+            msg += `${x}\n`
+          }
         })
+        if (allExists) {
+          this.config.imagePath = tempPath
+        } else {
+          alert(
+            '아래의 파일을 찾을 수 없습니다.\n\n' +
+              msg +
+              '\n이미지 파일을 설정하지 않습니다.',
+          )
+          this.handleInitImagePath()
+        }
       },
       handleKey(e) {
         if (e.code === 'KeyP') {
@@ -528,12 +544,10 @@
           this.config.waitTime = this.config.inputWaitTime * 1000
 
           // 이미지 로드
-          // ! 이미지 저장/불러오기 할때 취소/확인에 따라 예외가 너무 많이 발생한다.
-          // ! 환경설정 파일 저장한 뒤에 취소 버튼을 누르면 에러 발생
-          if (this.config.inputImagePath.length)
-            this.config.imagePath = this.setImagePath(
-              this.config.inputImagePath.map((x) => x.path),
-            )
+          if (this.config.inputImagePath.length) {
+            this.config.imagePath = this.config.inputImagePath
+            this.setImagePath(this.config.imagePath)
+          }
 
           this.restart()
         } else {
@@ -556,14 +570,7 @@
         let savePath = dialog.showSaveDialog(options)
         if (savePath) {
           console.log(`save file path : ${savePath}`)
-          // 파일 오브젝트에서 path만 배열로 저장
-          this.config.imagePath = this.config.inputImagePath.map((x) => x.path)
-          let copyConfig = _.cloneDeep(this.config)
-          // inputImagePath에 저장되는 File 오브젝트는 stringify 함수로 변환되지 않는다.
-          // 배열안에 빈 오브젝트가 생성되는데 이 데이터를 load 할때 그대로 inputImagePath에 대입하면 warnning이 발생한다.
-          // 따라서 빈 배열을 넣어준다.
-          copyConfig.inputImagePath = []
-          let jsonConfig = JSON.stringify(copyConfig)
+          let jsonConfig = JSON.stringify(this.config)
           console.log(`save json file : ${jsonConfig}`)
           fs.writeFileSync(savePath, jsonConfig)
         }
@@ -578,11 +585,25 @@
           console.log(`load file path : ${loadPath[0]}`)
           let readFile = fs.readFileSync(loadPath[0], {encoding: 'utf8'})
           console.log(`load file data : ${readFile}`)
-          let contents = JSON.parse(readFile)
-          contents.imagePath = this.setImagePath(contents.imagePath)
-          this.config = contents
+          this.config = JSON.parse(readFile)
           this.handleOK() // 예외처리가 복잡해서 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
         }
+      },
+      handleGetImagePath() {
+        console.log('handleGetImagePath')
+        const options = {
+          filters: [{name: 'Images', extensions: ['jpg', 'png']}],
+          properties: ['openFile', 'multiSelections'],
+        }
+        const imagePath = dialog.showOpenDialog(options)
+        if (imagePath) {
+          console.log(imagePath)
+          this.config.inputImagePath = imagePath
+        }
+      },
+      handleInitImagePath() {
+        console.log('handleInitImagePath');
+        this.config.inputImagePath = this.config.imagePath = []
       },
     },
   }
