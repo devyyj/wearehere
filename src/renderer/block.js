@@ -15,6 +15,8 @@ class Block {
     this.image = imagePath
 
     this.spawn()
+
+    this.angle = 1
   }
 
   // 이미지를 선택했다면 이미지 배열의 인덱스 + 1의 값으로 블럭을 설정한다.
@@ -38,7 +40,7 @@ class Block {
     }
   }
 
-  draw(size, grid = true) {
+  draw(size, grid, spin) {
     this.ctx.fillStyle = this.color
     this.shape.forEach((row, y) => {
       row.forEach(async (value, x) => {
@@ -47,14 +49,18 @@ class Block {
         // 보드에서 블록의 좌표는 this.x + x가 된다.
         if (value > 0) {
           if (this.image.length) {
-            // 이미지를 그리고
-            this.ctx.drawImage(
-              this.image[value - 1],
-              (this.x + x) * size,
-              (this.y + y) * size,
-              size,
-              size,
-            )
+            if (spin) {
+              // todo
+            } else {
+              // 이미지를 그리고
+              this.ctx.drawImage(
+                this.image[value - 1],
+                (this.x + x) * size,
+                (this.y + y) * size,
+                size,
+                size,
+              )
+            }
             // 이미지 위에 그리드를 그린다
             if (grid) {
               this.ctx.strokeRect(
@@ -118,6 +124,14 @@ class Block {
   move(reverse = false) {
     if (reverse) this.y -= 1
     else this.y += 1
+  }
+
+  spin() {
+    let temp = this.shape[1][0]
+    this.shape[1][0] = this.shape[1][1]
+    this.shape[1][1] = this.shape[0][1]
+    this.shape[0][1] = this.shape[0][0]
+    this.shape[0][0] = temp
   }
 }
 

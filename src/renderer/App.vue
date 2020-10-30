@@ -86,7 +86,6 @@
               v-model="config.inputGridColor"
             ></b-form-input>
             <b-form-checkbox
-              id="checkbox-1"
               v-model="config.inputDrawGrid"
               :value="true"
               :unchecked-value="false"
@@ -135,6 +134,15 @@
             >블럭 이미지 초기화</b-button
           >
         </b-col>
+        <b-col>
+          <b-form-checkbox
+            v-model="config.inputSpin"
+            :value="true"
+            :unchecked-value="false"
+          >
+            이미지 회전
+          </b-form-checkbox>
+        </b-col>
       </b-form-row>
 
       <b-alert v-if="alert" show variant="danger"
@@ -178,12 +186,12 @@
         bottomBoard: undefined,
         config: {
           size: 0, // board 크기
-          latitude: 90, // 위도, 속도, 입력값 범위 : 0-90
-          longitude: 0, // 경도, 블럭수, 입력값 범위 : 0-180
+          latitude: 90, // 위도, 속도, 입력값 범위 : 0-90, default 90
+          longitude: 0, // 경도, 블럭수, 입력값 범위 : 0-180, default 0
           endSpeed: 100, // 스테이지 종료 속도
           waitTime: 1000, // 다음 스테이지 시작전 대기 시간
-          speed: 90, // 실제 블럭 속도
-          count: 20, // 실제 블럭 수
+          speed: 90, // 실제 블럭 속도 default 90
+          count: 20, // 실제 블럭 수 default 20
           blockColor: '#000000',
           gridColor: '#808080',
           endColor: '#000000',
@@ -195,6 +203,7 @@
             backgroundColor: '#ffffff',
           },
           drawGrid: true,
+          spin: false,
           imagePath: [],
           inputImagePath: [],
           inputLatitude: 0,
@@ -207,6 +216,7 @@
           inputBackgroundColor: '#ffffff',
           inputMarginColor: '#ffffff',
           inputDrawGrid: true,
+          inputSpin: false,
         },
         isPause: false,
         isPauseR: false,
@@ -321,7 +331,7 @@
         // 비어 있는 공간에만 블럭을 그린다.
         if (board.emptyCheck(block, reverse)) {
           board.block = block
-          block.draw(this.blockSize, this.config.drawGrid)
+          block.draw(this.blockSize, this.config.drawGrid, this.config.spin)
         }
       },
       initBoard(reverse = false) {
@@ -408,11 +418,17 @@
           this.initBlock(reverse)
         } else {
           // 현재 블럭을 지운다.
-          // 블럭을 이동한다.
-          // 이동된 블럭을 그린다.
           board.block.clear(this.blockSize, this.config.drawGrid)
+          // 블럭을 이동한다.
           board.block.move(reverse)
-          board.block.draw(this.blockSize, this.config.drawGrid)
+          // 블럭을 회전한다.
+          if (this.config.spin) board.block.spin()
+          // 이동된 블럭을 그린다.
+          board.block.draw(
+            this.blockSize,
+            this.config.drawGrid,
+            this.config.spin,
+          )
         }
       },
       setBoardSize() {
@@ -527,8 +543,8 @@
           this.config.longitude = this.config.inputLongitude
           // 실제 적용할 값
           const speedArr = [0, 2, 4, 8, 16, 32, 64]
-          this.config.speed =
-            speedArr[Math.floor(Math.abs(this.config.inputLatitude / 13))]
+          this.config.speed = 1000
+          // speedArr[Math.floor(Math.abs(this.config.inputLatitude / 13))]
           this.config.count = this.calculateLongitude
 
           // 색상 설정
@@ -548,6 +564,9 @@
             this.config.imagePath = this.config.inputImagePath
             this.setImagePath(this.config.imagePath)
           }
+
+          // 스핀 설정
+          this.config.spin = this.config.inputSpin
 
           this.restart()
         } else {
@@ -602,7 +621,7 @@
         }
       },
       handleInitImagePath() {
-        console.log('handleInitImagePath');
+        console.log('handleInitImagePath')
         this.config.inputImagePath = this.config.imagePath = []
       },
     },
