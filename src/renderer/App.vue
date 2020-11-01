@@ -9,10 +9,31 @@
       centered
       scrollable
       title="환경설정"
-      @show="handleShow"
+      ref="modal"
+      ok-only
+      no-close-on-backdrop
+      hide-header-close 
       @ok="handleOK"
+      @show="handleShow"
       @hide="handleHide"
     >
+      <b-tabs content-class="mt-3">
+        <b-tab title="First" active @click="handleTab(0)"> </b-tab>
+        <b-tab title="Second" @click="handleTab(1)"> </b-tab>
+        <b-tab title="Third" @click="handleTab(2)"> </b-tab>
+      </b-tabs>
+      <b-form-group>
+        <b-form-checkbox
+          switch
+          size="lg"
+          v-model="config.apply"
+          :value="true"
+          :unchecked-value="false"
+        >
+          설정 적용
+        </b-form-checkbox>
+      </b-form-group>
+
       <b-form-row>
         <b-col>
           <b-form-group
@@ -123,7 +144,7 @@
       <b-form-row>
         <b-col>
           <b-button variant="outline-dark" block @click="handleGetImagePath()"
-            >블럭 이미지 선택</b-button
+            >이미지 선택</b-button
           >
         </b-col>
         <b-col>
@@ -131,7 +152,7 @@
             variant="outline-danger"
             block
             @click="handleInitImagePath()"
-            >블럭 이미지 초기화</b-button
+            >이미지 초기화</b-button
           >
         </b-col>
         <b-col>
@@ -145,10 +166,8 @@
         </b-col>
       </b-form-row>
 
-      <b-alert v-if="alert" show variant="danger"
-        >유효하지 않은 값이 있습니다.</b-alert
-      >
       <hr />
+
       <b-form-row>
         <b-col
           ><b-button block variant="outline-primary" @click="handleSave()"
@@ -184,12 +203,21 @@
         bottomCtx: undefined,
         topBoard: undefined,
         bottomBoard: undefined,
+        pause: false,
+        pauseR: false,
+        pauseEnd: false,
+        downInterval: undefined,
+        endInterval: undefined,
+        end: false,
+        endCount: 0,
+        saveConfig: {},
+        configIndex: 0,
+        configArr: [],
         config: {
+          apply: true,
           size: 0, // board 크기
-          latitude: 90, // 위도, 속도, 입력값 범위 : 0-90, default 90
-          longitude: 0, // 경도, 블럭수, 입력값 범위 : 0-180, default 0
-          endSpeed: 100, // 스테이지 종료 속도
-          waitTime: 1000, // 다음 스테이지 시작전 대기 시간
+          endSpeed: 100, // 스테이지 종료 속도, ms
+          waitTime: 1000, // 다음 스테이지 시작전 대기 시간, ms
           speed: 90, // 실제 블럭 속도 default 90
           count: 20, // 실제 블럭 수 default 20
           blockColor: '#000000',
@@ -206,8 +234,8 @@
           spin: false,
           imagePath: [],
           inputImagePath: [],
-          inputLatitude: 0,
-          inputLongitude: 0,
+          inputLatitude: '90', // 위도, 속도, 입력값 범위 : 0-90, default 90
+          inputLongitude: '0', // 경도, 블럭수, 입력값 범위 : 0-180, default 0
           inputEndSpeed: 0.1,
           inputWaitTime: 1,
           inputBlockColor: '#000000',
@@ -218,13 +246,6 @@
           inputDrawGrid: true,
           inputSpin: false,
         },
-        isPause: false,
-        isPauseR: false,
-        downInterval: undefined,
-        endInterval: undefined,
-        alert: false,
-        end: false,
-        endCount: 0,
       }
     },
     computed: {
@@ -285,7 +306,7 @@
     mounted() {
       this.topCtx = document.getElementById('top-board').getContext('2d')
       this.bottomCtx = document.getElementById('bottom-board').getContext('2d')
-
+      this.initConfigArr()
       this.init()
     },
     methods: {
@@ -405,10 +426,10 @@
           board.freeze()
           // 게임 종료 조건
           if (board.isFullRow(reverse)) {
-            reverse ? (this.isPauseR = true) : (this.isPause = true)
+            reverse ? (this.pauseR = true) : (this.pause = true)
             // pause 키를 누른게 아니라 게임 종료 조건에 따라 게임이 멈췄다면
             // this.end에 true를 설정하여 스테이지를 종료한다.
-            if (this.isPause && this.isPauseR) {
+            if (this.pause && this.pauseR) {
               this.end = true
               this.resetInterval()
             }
@@ -443,21 +464,23 @@
       restart() {
         this.end = false
         this.endCount = 0
-        this.isPause = false
-        this.isPauseR = false
+        this.pause = false
+        this.pauseR = false
+        this.setConfig()
         this.init()
       },
       resetInterval() {
         // 블럭을 떨어뜨리는 인터벌
         clearInterval(this.downInterval)
         this.downInterval = setInterval(() => {
-          if (this.isPause && this.isPauseR) return
+          if (this.pause && this.pauseR) return
           this.down()
           this.down(true)
         }, this.config.speed)
         // 스테이지 종료 인터벌
         clearInterval(this.endInterval)
         this.endInterval = setInterval(() => {
+          if(this.pauseEnd) return
           if (this.end) {
             if (this.endCount < this.config.count / 2) {
               // 위에서 아래로 한칸씩 지워 나간다.
@@ -487,6 +510,7 @@
         console.log(`setImagePath`)
         let allExists = true
         let msg = ''
+
         let tempPath = imagePath.map((x) => {
           if (fs.existsSync(x)) {
             let img = new Image()
@@ -497,8 +521,10 @@
             msg += `${x}\n`
           }
         })
+
         if (allExists) {
           this.config.imagePath = tempPath
+          console.log(this.config.imagePath)
         } else {
           alert(
             '아래의 파일을 찾을 수 없습니다.\n\n' +
@@ -508,15 +534,62 @@
           this.handleInitImagePath()
         }
       },
+      setConfig() {
+        console.log('setConfig')
+        if (this.configArr.every((x) => x.apply === false)) {
+          this.configArr[0].apply = true
+        }
+
+        for (; this.configIndex < this.configArr.length; ) {
+          if (this.configArr[this.configIndex].apply) {
+            this.config = this.configArr[this.configIndex]
+            console.log(`set config index ${this.configIndex}`)
+            this.configIndex++
+            if (this.configIndex >= this.configArr.length) this.configIndex = 0
+            break
+          }
+          this.configIndex++
+          if (this.configIndex >= this.configArr.length) this.configIndex = 0
+        }
+      },
+      initConfigArr() {
+        // 1 사이클 === 3 스테이지
+        // 최대 3개의 환경을 가질 수 있다.
+        // 기본 설정은 first 설정만 적용되도록 한다.
+
+        // first
+        this.configArr.push(_.cloneDeep(this.config))
+        // second
+        let copy = _.cloneDeep(this.config)
+        copy.apply = false
+        this.configArr.push(copy)
+        // third
+        copy = _.cloneDeep(this.config)
+        copy.apply = false
+        this.configArr.push(copy)
+      },
+      checkValid() {
+        return (
+          this.stateLatitude &&
+          this.stateLongitude &&
+          this.stateEndSpeed &&
+          this.stateWaitTime &&
+          this.configArr.some((x) => x.apply === true)
+        )
+      },
       handleKey(e) {
         if (e.code === 'KeyP') {
-          this.isPause = !this.isPause
-          this.isPauseR = !this.isPauseR
+          this.pause = !this.pause
+          this.pauseR = !this.pauseR
+          this.pauseEnd = !this.pauseEnd
         } else if (e.code === 'KeyR') {
+          // 인덱스 재설정
+          this.configIndex = 0
           this.restart()
         } else if (e.code === 'KeyE') {
-          this.isPause = true
-          this.isPauseR = true
+          this.pause = true
+          this.pauseR = true
+          this.pauseEnd = true
           this.$bvModal.show('env')
         } else if (e.code === 'KeyF') {
           console.log('keyF')
@@ -526,60 +599,63 @@
         }
       },
       handleShow() {
-        this.config.inputLatitude = String(this.config.latitude)
-        this.config.inputLongitude = String(this.config.longitude)
-        this.alert = false
+        this.handleTab(0)
       },
       handleOK(evt) {
-        if (
-          this.stateLatitude &&
-          this.stateLongitude &&
-          this.stateEndSpeed &&
-          this.stateWaitTime
-        ) {
-          // 속도 및 크기 설정
-          // 환경 설정 창에서 보여줄 값
-          this.config.latitude = this.config.inputLatitude
-          this.config.longitude = this.config.inputLongitude
-          // 실제 적용할 값
-          const speedArr = [0, 2, 4, 8, 16, 32, 64]
-          this.config.speed = 1000
-          // speedArr[Math.floor(Math.abs(this.config.inputLatitude / 13))]
-          this.config.count = this.calculateLongitude
+        if (this.checkValid()) {
+          for (let i = 0; i < this.configArr.length; i++) {
+            this.config = this.configArr[i]
 
-          // 색상 설정
-          this.config.blockColor = this.config.inputBlockColor
-          this.config.gridColor = this.config.inputGridColor
-          this.config.drawGrid = this.config.inputDrawGrid
-          this.config.endColor = this.config.inputEndColor
-          this.config.boardStyle.backgroundColor = this.config.inputBackgroundColor
-          this.config.bodyStyle.backgroundColor = this.config.inputMarginColor
+            // 속도 및 크기 설정
+            const speedArr = [0, 2, 4, 8, 16, 32, 64]
+            this.config.speed =
+              speedArr[Math.floor(Math.abs(this.config.inputLatitude / 13))]
+            this.config.count = this.calculateLongitude
 
-          // 종료 및 스테이지 대기 시간 설정
-          this.config.endSpeed = this.config.inputEndSpeed * 1000
-          this.config.waitTime = this.config.inputWaitTime * 1000
+            // 색상 설정
+            this.config.blockColor = this.config.inputBlockColor
+            this.config.gridColor = this.config.inputGridColor
+            this.config.drawGrid = this.config.inputDrawGrid
+            this.config.endColor = this.config.inputEndColor
+            this.config.boardStyle.backgroundColor = this.config.inputBackgroundColor
+            this.config.bodyStyle.backgroundColor = this.config.inputMarginColor
 
-          // 이미지 로드
-          if (this.config.inputImagePath.length) {
-            this.config.imagePath = this.config.inputImagePath
-            this.setImagePath(this.config.imagePath)
+            // 종료 및 스테이지 대기 시간 설정
+            this.config.endSpeed = this.config.inputEndSpeed * 1000
+            this.config.waitTime = this.config.inputWaitTime * 1000
+
+            // 이미지 로드
+            if (this.config.inputImagePath.length) {
+              this.config.imagePath = this.config.inputImagePath
+              this.setImagePath(this.config.imagePath)
+            }
+
+            // 스핀 설정
+            this.config.spin = this.config.inputSpin
           }
 
-          // 스핀 설정
-          this.config.spin = this.config.inputSpin
+          // 인덱스 재설정
+          this.configIndex = 0
 
           this.restart()
         } else {
           evt.preventDefault()
-          this.alert = true
+          if (this.configArr.every((x) => x.apply === false)) {
+            alert(
+              '최소 하나의 설정이 적용돼야합니다.\nFirst 환경 설정을 강제로 적용합니다.',
+            )
+            this.configArr[0].apply = true
+            this.restart()
+            this.$refs["modal"].hide();
+          } else alert('유효하지 않은 입력 값이 있습니다.')
         }
       },
       handleHide() {
         console.log('handleHide')
-        if (!this.alert) {
-          this.isPause = false
-          this.isPauseR = false
-        }
+        if (this.checkValid() === false) return
+        this.pause = false
+        this.pauseR = false
+        this.pauseEnd = false
       },
       handleSave() {
         console.log('handleSave')
@@ -589,7 +665,8 @@
         let savePath = dialog.showSaveDialog(options)
         if (savePath) {
           console.log(`save file path : ${savePath}`)
-          let jsonConfig = JSON.stringify(this.config)
+          this.saveConfig.data = this.configArr
+          let jsonConfig = JSON.stringify(this.saveConfig)
           console.log(`save json file : ${jsonConfig}`)
           fs.writeFileSync(savePath, jsonConfig)
         }
@@ -604,8 +681,9 @@
           console.log(`load file path : ${loadPath[0]}`)
           let readFile = fs.readFileSync(loadPath[0], {encoding: 'utf8'})
           console.log(`load file data : ${readFile}`)
-          this.config = JSON.parse(readFile)
+          this.configArr = JSON.parse(readFile).data
           this.handleOK() // 예외처리가 복잡해서 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
+          this.$refs["modal"].hide();
         }
       },
       handleGetImagePath() {
@@ -623,6 +701,10 @@
       handleInitImagePath() {
         console.log('handleInitImagePath')
         this.config.inputImagePath = this.config.imagePath = []
+      },
+      handleTab(n) {
+        console.log(this.configArr[n])
+        this.config = this.configArr[n]
       },
     },
   }

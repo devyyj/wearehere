@@ -2,131 +2,30 @@
 <html lang="en">
   <head> </head>
   <body>
-    <div id="container">
-      <canvas id="my"></canvas>
-    </div>
+    <canvas id="canvas" width="150" height="150"></canvas>
+
     <script>
-      let container = document.getElementById("container");
-      let canvas = document.getElementById("my");
-      let ctx = canvas.getContext("2d");
+      var ctx = document.getElementById('canvas').getContext('2d')
+      
+      var img0 = new Image()
+      img0.src = 'https://i.stack.imgur.com/0vxxK.png'
 
-      canvas.width = 900
-      canvas.height = 900
+      var img90 = new Image()
+      img90.src = 'https://i.stack.imgur.com/9EgLn.png'
 
-      let pixelRatio = Math.round(window.devicePixelRatio) || 1;
+      var img180 = new Image()
+      img180.src = 'https://i.stack.imgur.com/Us9fa.png'
 
-      canvas.width = canvas.width * pixelRatio;
-      canvas.height = canvas.height * pixelRatio;
+      var img270 = new Image()
+      img270.src = 'https://i.stack.imgur.com/EO9f9.png'
+      
+      ctx.drawImage(img0, 0, 0)
 
-      canvas.style.width = Math.round(canvas.width / pixelRatio) + "px";
-      canvas.style.height = Math.round(canvas.height / pixelRatio) + "px";
-      // also, the container should have the same size as the canvas
-      container.style.width = canvas.style.width;
-      container.style.height = canvas.style.height;
+      ctx.drawImage(img90, 20, 0)
+      
+      ctx.drawImage(img180, 40, 0)
 
-      // 세로 선
-      for (let x = 0.5; x <= 900 + 0.5; x += 45) {
-        ctx.moveTo(x, 0);
-        // 0.5를 더해야 선명한 선이 그려지고 오른쪽 아래 모서리까지 제대로 그려진다.
-        // 해당 값을 제거하고 실행하면 왜 이렇게 처리 했는지 알수 있음
-        // 가로 선도 마찬가지
-        ctx.lineTo(x, 900 * 45);
-      }
-      // 가로 선
-      for (let y = 0.5; y <= 900 + 0.5; y += 45) {
-        // if(reverse && y === 0) continue
-        ctx.moveTo(0, y);
-        ctx.lineTo(900 * 45, y);
-      }
-
-      ctx.stroke();
-
-      ctx.scale(10, 10);
-
-      /*
-          let container = document.getElementById("main");
-          let canvasTop = document.getElementById("top-board");
-          let canvasBottom = document.getElementById("bottom-board");
-
-          let pixelRatio = Math.round(window.devicePixelRatio) || 1
-
-          canvasTop.width = pixelRatio * this.config.size;
-          canvasTop.height = pixelRatio * this.config.size / 2;
-
-          canvasTop.style.width = Math.round(canvasTop.width / pixelRatio) + "px";
-          canvasTop.style.height = Math.round(canvasTop.height / pixelRatio) + "px";
-
-          canvasBottom.width = this.config.size * pixelRatio;
-          canvasBottom.height = this.config.size / 2 * pixelRatio;
-
-          canvasBottom.style.width = Math.round(canvasBottom.width / pixelRatio) + "px";
-          canvasBottom.style.height = Math.round(canvasBottom.height / pixelRatio) + "px";
-
-          container.style.width = canvasTop.style.width;
-          container.style.height = canvasTop.style.height + canvasBottom.style.height;
-          */
+      ctx.drawImage(img270, 60, 0)
     </script>
   </body>
 </html>
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
-  </head>
-  <body>
-    <div id="container" style="border: 1px dotted red;"></div>
-    <script>
-      let container = document.getElementById("container"),
-        canvas = document.createElement("canvas"),
-        context = canvas.getContext("2d");
-
-      // round pixelRatio, because older devices have a pixelRatio of 1.5. Treat them as @2x devices
-      let pixelRatio = Math.round(window.devicePixelRatio) || 1;
-
-      container.appendChild(canvas);
-
-      // we're working with all available pixels, i. e. 750x1334 on an iPhone 7
-      let width = 375 * pixelRatio;
-      let height = 667 * pixelRatio;
-
-      // here's the magic: the actual canvas has the same pixels as the device (iPhone 7 in this case)
-      canvas.width = width;
-      canvas.height = height;
-      // however, the canvas dimensions are set to the pixels we're working with in the browser.
-      canvas.style.width = Math.round(width / pixelRatio) + "px";
-      canvas.style.height = Math.round(height / pixelRatio) + "px";
-      // also, the container should have the same size as the canvas
-      container.style.width = canvas.style.width;
-      container.style.height = canvas.style.height;
-
-      // now let's draw stuff
-      context.clearRect(0, 0, width, height);
-      context.save();
-
-      let x1 = 10,
-        y1 = 10,
-        x2 = width - 10,
-        y2 = 10;
-
-      // an actual 1px hairline
-      context.lineWidth = 1;
-      context.strokeStyle = "#444";
-
-      // place the path
-      // Important: always offset by half a pixel to make lines super crisp
-      context.beginPath();
-      context.moveTo(x1 + 0.5, y1 + 0.5);
-      context.lineTo(x2 + 0.5, y2 + 0.5);
-      context.closePath();
-
-      context.stroke();
-
-      context.restore();
-
-      // voilà, a crisp 1px hairline on your retina device
-    </script>
-  </body>
-</html> -->

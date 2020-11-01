@@ -16,7 +16,7 @@ class Block {
 
     this.spawn()
 
-    this.angle = 1
+    this.angle = 0
   }
 
   // 이미지를 선택했다면 이미지 배열의 인덱스 + 1의 값으로 블럭을 설정한다.
@@ -49,18 +49,14 @@ class Block {
         // 보드에서 블록의 좌표는 this.x + x가 된다.
         if (value > 0) {
           if (this.image.length) {
-            if (spin) {
-              // todo
-            } else {
-              // 이미지를 그리고
-              this.ctx.drawImage(
-                this.image[value - 1],
-                (this.x + x) * size,
-                (this.y + y) * size,
-                size,
-                size,
-              )
-            }
+            // 이미지를 그리고
+            this.ctx.drawImage(
+              this.image[value - 1],
+              (this.x + x) * size,
+              (this.y + y) * size,
+              size,
+              size,
+            )
             // 이미지 위에 그리드를 그린다
             if (grid) {
               this.ctx.strokeRect(
