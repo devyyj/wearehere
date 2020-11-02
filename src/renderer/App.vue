@@ -642,11 +642,8 @@
           evt.preventDefault()
           if (this.configArr.every((x) => x.apply === false)) {
             alert(
-              '최소 하나의 설정이 적용돼야합니다.\nFirst 환경 설정을 강제로 적용합니다.',
+              '최소 하나의 설정이 적용돼야합니다.',
             )
-            this.configArr[0].apply = true
-            this.restart()
-            this.$refs["modal"].hide();
           } else alert('유효하지 않은 입력 값이 있습니다.')
         }
       },
