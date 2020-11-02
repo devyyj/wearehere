@@ -12,7 +12,7 @@
       ref="modal"
       ok-only
       no-close-on-backdrop
-      hide-header-close 
+      hide-header-close
       @ok="handleOK"
       @show="handleShow"
       @hide="handleHide"
@@ -480,7 +480,7 @@
         // 스테이지 종료 인터벌
         clearInterval(this.endInterval)
         this.endInterval = setInterval(() => {
-          if(this.pauseEnd) return
+          if (this.pauseEnd) return
           if (this.end) {
             if (this.endCount < this.config.count / 2) {
               // 위에서 아래로 한칸씩 지워 나간다.
@@ -641,9 +641,7 @@
         } else {
           evt.preventDefault()
           if (this.configArr.every((x) => x.apply === false)) {
-            alert(
-              '최소 하나의 설정이 적용돼야합니다.',
-            )
+            alert('최소 하나의 설정이 적용돼야합니다.')
           } else alert('유효하지 않은 입력 값이 있습니다.')
         }
       },
@@ -680,13 +678,13 @@
           console.log(`load file data : ${readFile}`)
           this.configArr = JSON.parse(readFile).data
           this.handleOK() // 예외처리가 복잡해서 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
-          this.$refs["modal"].hide();
+          this.$refs['modal'].hide()
         }
       },
       handleGetImagePath() {
         console.log('handleGetImagePath')
         const options = {
-          filters: [{name: 'Images', extensions: ['jpg', 'png']}],
+          filters: [{name: 'Images', extensions: ['jpg', 'jpeg', 'png']}],
           properties: ['openFile', 'multiSelections'],
         }
         const imagePath = dialog.showOpenDialog(options)

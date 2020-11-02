@@ -40,7 +40,7 @@ class Block {
     }
   }
 
-  draw(size, grid, spin) {
+  draw(size, grid) {
     this.ctx.fillStyle = this.color
     this.shape.forEach((row, y) => {
       row.forEach(async (value, x) => {
