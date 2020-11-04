@@ -714,6 +714,10 @@
     transform: translate(-50%, -50%);
   }
 
+  body::-webkit-scrollbar{
+    display: none;
+  }
+
   canvas {
     margin-bottom: -8px;
   }
