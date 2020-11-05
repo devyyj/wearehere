@@ -5,17 +5,36 @@
       ><canvas id="bottom-board" :style="config.boardStyle"></canvas>
     </div>
     <b-modal
+      id="admin"
+      size="sm"
+      centered
+      no-close-on-backdrop
+      hide-header-close
+      @ok="handleAdminOK"
+      @cancel="handleAdminCancel"
+    >
+      <b-form-group
+        label="Are you UNI+FORM ?"
+        description="비밀번호를 모르면 취소 버튼을 누르세요."
+      >
+        <b-form-input
+          v-model="password"
+          type="password"
+          placeholder="비밀번호를 입력하세요."
+        ></b-form-input>
+      </b-form-group>
+    </b-modal>
+    <b-modal
       id="env"
       centered
       scrollable
       title="환경설정"
-      ref="modal"
       ok-only
       no-close-on-backdrop
       hide-header-close
-      @ok="handleOK"
-      @show="handleShow"
-      @hide="handleHide"
+      @ok="handleEnvOK"
+      @show="handleEnvShow"
+      @hide="handleEnvHide"
     >
       <b-tabs content-class="mt-3">
         <b-tab title="First" active @click="handleTab(0)"> </b-tab>
@@ -211,6 +230,8 @@
         end: false,
         endCount: 0,
         saveConfig: {},
+        admin: 'yes1am',
+        password: '',
         configIndex: 0,
         configArr: [],
         config: {
@@ -590,7 +611,8 @@
           this.pause = true
           this.pauseR = true
           this.pauseEnd = true
-          this.$bvModal.show('env')
+          if (this.admin === this.password) this.$bvModal.show('env')
+          else this.$bvModal.show('admin')
         } else if (e.code === 'KeyF') {
           console.log('keyF')
           const window = electron.remote.getCurrentWindow()
@@ -598,10 +620,10 @@
           else window.setFullScreen(true)
         }
       },
-      handleShow() {
+      handleEnvShow() {
         this.handleTab(0)
       },
-      handleOK(evt) {
+      handleEnvOK(evt) {
         if (this.checkValid()) {
           for (let i = 0; i < this.configArr.length; i++) {
             this.config = this.configArr[i]
@@ -645,8 +667,8 @@
           } else alert('유효하지 않은 입력 값이 있습니다.')
         }
       },
-      handleHide() {
-        console.log('handleHide')
+      handleEnvHide() {
+        console.log('handleEnvHide')
         if (this.checkValid() === false) return
         this.pause = false
         this.pauseR = false
@@ -677,8 +699,8 @@
           let readFile = fs.readFileSync(loadPath[0], {encoding: 'utf8'})
           console.log(`load file data : ${readFile}`)
           this.configArr = JSON.parse(readFile).data
-          this.handleOK() // 예외처리가 복잡해서 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
-          this.$refs['modal'].hide()
+          this.handleEnvOK() // 예외처리가 복잡해서 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
+          this.$bvModal.hide('env')
         }
       },
       handleGetImagePath() {
@@ -701,6 +723,20 @@
         console.log(this.configArr[n])
         this.config = this.configArr[n]
       },
+      handleAdminOK(evt) {
+        console.log('handleAdminOK');
+        if (this.admin === this.password) {
+          this.$bvModal.hide('admin')
+          this.$bvModal.show('env')
+        } else {
+          alert('비밀번호를 다시 입력하세요.')
+          evt.preventDefault()
+        }
+      },
+      handleAdminCancel() {
+        console.log('handleAdminCancel')
+        this.handleLoad()
+      },
     },
   }
 </script>
@@ -712,10 +748,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-  }
-
-  body::-webkit-scrollbar{
-    display: none;
+    margin-top: -1px;
   }
 
   canvas {
