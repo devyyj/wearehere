@@ -642,6 +642,24 @@
           this.configArr.some((x) => x.apply === true)
         )
       },
+      copyFile(srcFilePath, dstFileFolder) {
+        for (let i = 0; i < srcFilePath.length; i++) {
+          // 파일 이름이 같을 수 있으므로 파일 이름을 시간으로 처리
+          let dstFileName = `${Date.now()}${path.extname(srcFilePath[i])}`
+          const folderPath = path.join(__static, dstFileFolder)
+          const dstFilePath = path.join(folderPath, dstFileName)
+          console.log(`copyFile(), ${srcFilePath[i]} to ${dstFilePath}`)
+          // 이미지를 저장할 디렉토리 생성
+          if (fs.existsSync(folderPath) === false) fs.mkdirSync(folderPath)
+          // background_image 폴더에 배경 이미지 파일 복사
+          fs.copyFileSync(srcFilePath[i], dstFilePath)
+
+          if (dstFileFolder === 'background_image')
+            this.config.backgroundImageName = dstFileName
+          else if (dstFileFolder === 'block_image')
+            this.config.inputBlockImagePath.push(dstFilePath)
+        }
+      },
       handleKey(e) {
         if (e.code === 'KeyP') {
           this.pause = !this.pause
@@ -757,7 +775,8 @@
         const blockImagePath = electron.dialog.showOpenDialog(options)
         if (blockImagePath) {
           console.log(blockImagePath)
-          this.config.inputBlockImagePath = blockImagePath
+          this.config.inputBlockImagePath = []
+          this.copyFile(blockImagePath, 'block_image')
         }
       },
       handleInitBlockImagePath() {
@@ -793,30 +812,13 @@
           const backgroundImagePath = electron.dialog.showOpenDialog(options)
           // 배경 이미지 파일을 선택했을 경우
           if (backgroundImagePath) {
-            // 파일 이름이 같을 수 있으므로 파일 이름을 시간으로 처리
-            let imageName = (this.config.backgroundImageName = `${Date.now()}${path.extname(
-              backgroundImagePath[0],
-            )}`)
-            let imagePath = path.join(__static, 'background_image')
-            console.log(
-              `copy ${backgroundImagePath[0]} to ${path.join(
-                imagePath,
-                imageName,
-              )}`,
-            )
-            // 배경 이미지를 저장할 디렉토리 생성
-            if (fs.existsSync(imagePath) === false) fs.mkdirSync(imagePath)
-            // background_image 폴더에 배경 이미지 파일 복사
-            fs.copyFileSync(
-              backgroundImagePath[0],
-              path.join(imagePath, imageName),
-            )
+            this.copyFile(backgroundImagePath, 'background_image')
             // top/bottom 반반씩 이미지가 나오도록 설정
-            this.config.topBoardStyle.backgroundImage = `url('static/background_image/${imageName}')`
+            this.config.topBoardStyle.backgroundImage = `url('static/background_image/${this.config.backgroundImageName}')`
             this.config.topBoardStyle.backgroundSize = `100% 200%`
             this.config.topBoardStyle.backgroundPosition = `center top`
 
-            this.config.bottomBoardStyle.backgroundImage = `url('static/background_image/${imageName}')`
+            this.config.bottomBoardStyle.backgroundImage = `url('static/background_image/${this.config.backgroundImageName}')`
             this.config.bottomBoardStyle.backgroundSize = `100% 200%`
             this.config.bottomBoardStyle.backgroundPosition = `center bottom`
           }
