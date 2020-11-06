@@ -1,12 +1,13 @@
 <template>
   <div id="app" :style="config.bodyStyle">
     <div id="main">
-      <canvas id="top-board" :style="config.boardStyle"></canvas
-      ><canvas id="bottom-board" :style="config.boardStyle"></canvas>
+      <canvas id="top-board" :style="config.topBoardStyle"></canvas
+      ><canvas id="bottom-board" :style="config.bottomBoardStyle"></canvas>
     </div>
     <b-modal
       id="admin"
       size="sm"
+      title="사용자 인증"
       centered
       no-close-on-backdrop
       hide-header-close
@@ -21,6 +22,8 @@
           v-model="password"
           type="password"
           placeholder="비밀번호를 입력하세요."
+          autofocus
+          @keyup.enter="handleAdminOK"
         ></b-form-input>
       </b-form-group>
     </b-modal>
@@ -160,30 +163,57 @@
         </b-col>
       </b-form-row>
 
-      <b-form-row>
-        <b-col>
-          <b-button variant="outline-dark" block @click="handleGetImagePath()"
-            >이미지 선택</b-button
-          >
-        </b-col>
-        <b-col>
-          <b-button
-            variant="outline-danger"
-            block
-            @click="handleInitImagePath()"
-            >이미지 초기화</b-button
-          >
-        </b-col>
-        <b-col>
-          <b-form-checkbox
-            v-model="config.inputSpin"
-            :value="true"
-            :unchecked-value="false"
-          >
-            이미지 회전
-          </b-form-checkbox>
-        </b-col>
-      </b-form-row>
+      <b-form-group label="블럭 이미지">
+        <b-form-row>
+          <b-col>
+            <b-button
+              variant="outline-dark"
+              block
+              @click="handleGetBlockImagePath()"
+              >이미지 선택</b-button
+            >
+          </b-col>
+          <b-col>
+            <b-button
+              variant="outline-danger"
+              block
+              @click="handleInitBlockImagePath()"
+              >이미지 초기화</b-button
+            >
+          </b-col>
+          <b-col>
+            <b-form-checkbox
+              v-model="config.inputSpin"
+              :value="true"
+              :unchecked-value="false"
+            >
+              이미지 회전
+            </b-form-checkbox>
+          </b-col>
+        </b-form-row>
+      </b-form-group>
+
+      <b-form-group label="배경 이미지">
+        <b-form-row>
+          <b-col>
+            <b-button
+              variant="outline-dark"
+              block
+              @click="handleGetBackgroundImagePath()"
+              >이미지 선택</b-button
+            >
+          </b-col>
+          <b-col>
+            <b-button
+              variant="outline-danger"
+              block
+              @click="handleInitBackgroundImagePath()"
+              >이미지 초기화</b-button
+            >
+          </b-col>
+          <b-col> </b-col>
+        </b-form-row>
+      </b-form-group>
 
       <hr />
 
@@ -206,13 +236,14 @@
 <script>
   import Board from './board'
   import Block from './block'
-  import fs from 'fs'
+  import fs from 'original-fs'
   import {time, timeEnd, timeLog} from 'console'
   import * as _ from 'lodash'
 
   const du = require('datauri/sync')
-  const {dialog} = require('electron').remote
-  const electron = require('electron')
+  const electron = require('electron').remote
+  const path = require('path')
+  const rmdir = require('rimraf')
 
   export default {
     name: 'wearehere',
@@ -244,7 +275,10 @@
           blockColor: '#000000',
           gridColor: '#808080',
           endColor: '#000000',
-          boardStyle: {
+          topBoardStyle: {
+            backgroundColor: '#ffffff',
+          },
+          bottomBoardStyle: {
             backgroundColor: '#ffffff',
           },
           bodyStyle: {
@@ -253,8 +287,9 @@
           },
           drawGrid: true,
           spin: false,
-          imagePath: [],
-          inputImagePath: [],
+          backgroundImageName: '',
+          blockImagePath: [],
+          inputBlockImagePath: [],
           inputLatitude: '90', // 위도, 속도, 입력값 범위 : 0-90, default 90
           inputLongitude: '0', // 경도, 블럭수, 입력값 범위 : 0-180, default 0
           inputEndSpeed: 0.1,
@@ -309,13 +344,21 @@
         return this.config.inputWaitTime >= 1
       },
       countImageFile() {
-        const count = this.config.inputImagePath.length
-          ? this.config.inputImagePath.length
-          : this.config.imagePath.length
+        const count = this.config.inputBlockImagePath.length
+          ? this.config.inputBlockImagePath.length
+          : this.config.blockImagePath.length
         return `${count}개의 이미지가 선택되어있습니다.`
       },
     },
     created() {
+      try {
+        // 이미지가 쌓이는 것을 방지하기 위해 static 폴더 삭제 후 재 생성
+        if (fs.existsSync(__static)) rmdir.sync(__static)
+        if (fs.existsSync(__static) === false) fs.mkdirSync(__static)
+      } catch (error) {
+        alert(`created(), ${error}`)
+      }
+
       // resize 이벤트 리스너 등록
       window.addEventListener('resize', () => {
         this.init()
@@ -368,7 +411,7 @@
           x,
           y,
           this.config.blockColor,
-          this.config.imagePath,
+          this.config.blockImagePath,
         )
         // 비어 있는 공간에만 블럭을 그린다.
         if (board.emptyCheck(block, reverse)) {
@@ -382,7 +425,7 @@
             this.config.count / 2,
             this.config.count,
             this.config.blockColor,
-            this.config.imagePath,
+            this.config.blockImagePath,
           )
           this.topBoard.ctx = this.topCtx
           this.topBoard.reset()
@@ -391,7 +434,7 @@
             this.config.count / 2,
             this.config.count,
             this.config.blockColor,
-            this.config.imagePath,
+            this.config.blockImagePath,
           )
           this.bottomBoard.ctx = this.bottomCtx
           this.bottomBoard.reset()
@@ -487,6 +530,7 @@
         this.endCount = 0
         this.pause = false
         this.pauseR = false
+        this.pauseEnd = false
         this.setConfig()
         this.init()
       },
@@ -527,12 +571,12 @@
         }, this.config.endSpeed)
       },
       // 이미지를 미리 로딩해 둔다, 아니면 이미지를 매번 로딩해서 깜빡거림
-      setImagePath(imagePath) {
+      setImagePath(blockImagePath) {
         console.log(`setImagePath`)
         let allExists = true
         let msg = ''
 
-        let tempPath = imagePath.map((x) => {
+        let tempPath = blockImagePath.map((x) => {
           if (fs.existsSync(x)) {
             let img = new Image()
             img.src = du(x).content
@@ -544,15 +588,15 @@
         })
 
         if (allExists) {
-          this.config.imagePath = tempPath
-          console.log(this.config.imagePath)
+          this.config.blockImagePath = tempPath
+          console.log(this.config.blockImagePath)
         } else {
           alert(
             '아래의 파일을 찾을 수 없습니다.\n\n' +
               msg +
               '\n이미지 파일을 설정하지 않습니다.',
           )
-          this.handleInitImagePath()
+          this.handleInitBlockImagePath()
         }
       },
       setConfig() {
@@ -604,7 +648,7 @@
           this.pauseR = !this.pauseR
           this.pauseEnd = !this.pauseEnd
         } else if (e.code === 'KeyR') {
-          // 인덱스 재설정
+          // 인덱스 재설정, restart() 안에 넣으면 안됨
           this.configIndex = 0
           this.restart()
         } else if (e.code === 'KeyE') {
@@ -615,7 +659,7 @@
           else this.$bvModal.show('admin')
         } else if (e.code === 'KeyF') {
           console.log('keyF')
-          const window = electron.remote.getCurrentWindow()
+          const window = electron.getCurrentWindow()
           if (window.isFullScreen()) window.setFullScreen(false)
           else window.setFullScreen(true)
         }
@@ -639,7 +683,8 @@
             this.config.gridColor = this.config.inputGridColor
             this.config.drawGrid = this.config.inputDrawGrid
             this.config.endColor = this.config.inputEndColor
-            this.config.boardStyle.backgroundColor = this.config.inputBackgroundColor
+            this.config.topBoardStyle.backgroundColor = this.config.inputBackgroundColor
+            this.config.bottomBoardStyle.backgroundColor = this.config.inputBackgroundColor
             this.config.bodyStyle.backgroundColor = this.config.inputMarginColor
 
             // 종료 및 스테이지 대기 시간 설정
@@ -647,9 +692,9 @@
             this.config.waitTime = this.config.inputWaitTime * 1000
 
             // 이미지 로드
-            if (this.config.inputImagePath.length) {
-              this.config.imagePath = this.config.inputImagePath
-              this.setImagePath(this.config.imagePath)
+            if (this.config.inputBlockImagePath.length) {
+              this.config.blockImagePath = this.config.inputBlockImagePath
+              this.setImagePath(this.config.blockImagePath)
             }
 
             // 스핀 설정
@@ -679,7 +724,7 @@
         let options = {
           filters: [{name: 'WE ARE HERE File', extensions: ['wah']}],
         }
-        let savePath = dialog.showSaveDialog(options)
+        let savePath = electron.dialog.showSaveDialog(options)
         if (savePath) {
           console.log(`save file path : ${savePath}`)
           this.saveConfig.data = this.configArr
@@ -693,7 +738,7 @@
         let options = {
           filters: [{name: 'WE ARE HERE File', extensions: ['wah']}],
         }
-        let loadPath = dialog.showOpenDialog(options)
+        let loadPath = electron.dialog.showOpenDialog(options)
         if (loadPath) {
           console.log(`load file path : ${loadPath[0]}`)
           let readFile = fs.readFileSync(loadPath[0], {encoding: 'utf8'})
@@ -703,28 +748,28 @@
           this.$bvModal.hide('env')
         }
       },
-      handleGetImagePath() {
-        console.log('handleGetImagePath')
+      handleGetBlockImagePath() {
+        console.log('handleGetBlockImagePath')
         const options = {
           filters: [{name: 'Images', extensions: ['jpg', 'jpeg', 'png']}],
           properties: ['openFile', 'multiSelections'],
         }
-        const imagePath = dialog.showOpenDialog(options)
-        if (imagePath) {
-          console.log(imagePath)
-          this.config.inputImagePath = imagePath
+        const blockImagePath = electron.dialog.showOpenDialog(options)
+        if (blockImagePath) {
+          console.log(blockImagePath)
+          this.config.inputBlockImagePath = blockImagePath
         }
       },
-      handleInitImagePath() {
-        console.log('handleInitImagePath')
-        this.config.inputImagePath = this.config.imagePath = []
+      handleInitBlockImagePath() {
+        console.log('handleInitBlockImagePath')
+        this.config.inputBlockImagePath = this.config.blockImagePath = []
       },
       handleTab(n) {
         console.log(this.configArr[n])
         this.config = this.configArr[n]
       },
       handleAdminOK(evt) {
-        console.log('handleAdminOK');
+        console.log('handleAdminOK')
         if (this.admin === this.password) {
           this.$bvModal.hide('admin')
           this.$bvModal.show('env')
@@ -736,6 +781,53 @@
       handleAdminCancel() {
         console.log('handleAdminCancel')
         this.handleLoad()
+      },
+      // background-image 속성을 사용하여 배경 이미지를 설정
+      // 어플리케이션의 static 폴더로 파일을 가져와야 한다.
+      handleGetBackgroundImagePath() {
+        try {
+          console.log('handleGetBackgroundImagePath')
+          const options = {
+            filters: [{name: 'Images', extensions: ['jpg', 'jpeg', 'png']}],
+          }
+          const backgroundImagePath = electron.dialog.showOpenDialog(options)
+          // 배경 이미지 파일을 선택했을 경우
+          if (backgroundImagePath) {
+            // 파일 이름이 같을 수 있으므로 파일 이름을 시간으로 처리
+            let imageName = (this.config.backgroundImageName = `${Date.now()}${path.extname(
+              backgroundImagePath[0],
+            )}`)
+            let imagePath = path.join(__static, 'background_image')
+            console.log(
+              `copy ${backgroundImagePath[0]} to ${path.join(
+                imagePath,
+                imageName,
+              )}`,
+            )
+            // 배경 이미지를 저장할 디렉토리 생성
+            if (fs.existsSync(imagePath) === false) fs.mkdirSync(imagePath)
+            // background_image 폴더에 배경 이미지 파일 복사
+            fs.copyFileSync(
+              backgroundImagePath[0],
+              path.join(imagePath, imageName),
+            )
+            // top/bottom 반반씩 이미지가 나오도록 설정
+            this.config.topBoardStyle.backgroundImage = `url('static/background_image/${imageName}')`
+            this.config.topBoardStyle.backgroundSize = `100% 200%`
+            this.config.topBoardStyle.backgroundPosition = `center top`
+
+            this.config.bottomBoardStyle.backgroundImage = `url('static/background_image/${imageName}')`
+            this.config.bottomBoardStyle.backgroundSize = `100% 200%`
+            this.config.bottomBoardStyle.backgroundPosition = `center bottom`
+          }
+        } catch (error) {
+          alert(`handleGetBackgroundImagePath(), ${error}`)
+        }
+      },
+      handleInitBackgroundImagePath() {
+        console.log('handleInitBackgroundImagePath')
+        delete this.config.topBoardStyle.backgroundImage
+        delete this.config.bottomBoardStyle.backgroundImage
       },
     },
   }

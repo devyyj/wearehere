@@ -23,7 +23,7 @@ class Block {
   // 블럭을 그리는 조건이 value > 0 이고, 배열의 인덱스는 0을 값으로 가질 수 있기 때문에 + 1을 해준다.
   // 이미지를 그릴때는 인덱스 - 1의 값을 사용한다.
   randomImage() {
-    return (parseInt(Math.random() * 10) % this.image.length) + 1
+    return (parseInt(Math.random() * 100) % this.image.length) + 1
   }
 
   spawn() {

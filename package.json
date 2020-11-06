@@ -1,6 +1,6 @@
 {
   "name": "wearehere",
-  "version": "0.0.1",
+  "version": "0.0.10",
   "author": "",
   "description": "An electron-vue project",
   "license": null,
@@ -22,6 +22,7 @@
     "postinstall": "npm run lint:fix"
   },
   "build": {
+    "asar" : false,
     "productName": "wearehere",
     "appId": "com.unit-form.wearehere",
     "directories": {
@@ -118,6 +119,7 @@
     "node-sass": "^4.9.2",
     "prettier": "^2.0.5",
     "require-dir": "^1.0.0",
+    "rimraf": "^3.0.2",
     "sass-loader": "^7.0.3",
     "spectron": "^3.8.0",
     "style-loader": "^0.21.0",
