@@ -22,7 +22,7 @@
     "postinstall": "npm run lint:fix"
   },
   "build": {
-    "asar" : false,
+    "asar": false,
     "productName": "wearehere",
     "appId": "com.unit-form.wearehere",
     "directories": {
