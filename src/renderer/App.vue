@@ -264,6 +264,8 @@
         saveConfig: {},
         admin: 'yes1am',
         password: '',
+        blockImageFolderName: 'block_image',
+        backgroundImageFolderName: 'background_image',
         configIndex: 0,
         configArr: [],
         config: {
@@ -290,7 +292,7 @@
           spin: false,
           backgroundImageName: '',
           blockImagePath: [],
-          inputBlockImagePath: [],
+          inputBlockImageName: [],
           inputLatitude: '90', // 위도, 속도, 입력값 범위 : 0-90, default 90
           inputLongitude: '0', // 경도, 블럭수, 입력값 범위 : 0-180, default 0
           inputEndSpeed: 0.1,
@@ -343,12 +345,6 @@
       },
       stateWaitTime() {
         return this.config.inputWaitTime >= 1
-      },
-      countImageFile() {
-        const count = this.config.inputBlockImagePath.length
-          ? this.config.inputBlockImagePath.length
-          : this.config.blockImagePath.length
-        return `${count}개의 이미지가 선택되어있습니다.`
       },
     },
     created() {
@@ -575,22 +571,23 @@
         }, this.config.endSpeed)
       },
       // 이미지를 미리 로딩해 둔다, 아니면 이미지를 매번 로딩해서 깜빡거림
-      setImagePath(blockImagePath) {
-        console.log(`setImagePath`)
+      setBlockImagePath(blockImageName) {
+        console.log(`setBlockImagePath(), ${blockImageName}`)
         let allExists = true
         let msg = ''
-
-        let tempPath = blockImagePath.map((x) => {
-          if (fs.existsSync(x)) {
+        // 이미지 로딩
+        let tempPath = blockImageName.map((x) => {
+          let imagePath = path.join(__static, this.blockImageFolderName, x)
+          if (fs.existsSync(imagePath)) {
             let img = new Image()
-            img.src = du(x).content
+            img.src = du(imagePath).content
             return img
           } else {
             allExists = false
-            msg += `${x}\n`
+            msg += `${imagePath}\n`
           }
         })
-
+        // 모든 이미지 로딩에 성공했을 경우와 그렇지 않을 경우 처리
         if (allExists) {
           this.config.blockImagePath = tempPath
           console.log(this.config.blockImagePath)
@@ -646,22 +643,26 @@
           this.configArr.some((x) => x.apply === true)
         )
       },
+      // 파일 복사 후 복사된 파일 이름을 리턴한다.
       copyFile(srcFilePath, dstFileFolder) {
-        for (let i = 0; i < srcFilePath.length; i++) {
-          // 파일 이름이 같을 수 있으므로 파일 이름을 시간으로 처리
-          let dstFileName = `${Date.now()}${path.extname(srcFilePath[i])}`
-          const folderPath = path.join(__static, dstFileFolder)
-          const dstFilePath = path.join(folderPath, dstFileName)
-          console.log(`copyFile(), ${srcFilePath[i]} to ${dstFilePath}`)
-          // 이미지를 저장할 디렉토리 생성
-          if (fs.existsSync(folderPath) === false) fs.mkdirSync(folderPath)
-          // background_image 폴더에 배경 이미지 파일 복사
-          fs.copyFileSync(srcFilePath[i], dstFilePath)
+        try {
+          let result = []
+          for (let i = 0; i < srcFilePath.length; i++) {
+            // 파일 이름이 같을 수 있으므로 파일 이름을 시간으로 처리
+            let dstFileName = `${Date.now()}${path.extname(srcFilePath[i])}`
+            const folderPath = path.join(__static, dstFileFolder)
+            const dstFilePath = path.join(folderPath, dstFileName)
+            console.log(`copyFile(), ${srcFilePath[i]} to ${dstFilePath}`)
+            // 이미지를 저장할 디렉토리 생성
+            if (fs.existsSync(folderPath) === false) fs.mkdirSync(folderPath)
+            // 이미지 파일 복사
+            fs.copyFileSync(srcFilePath[i], dstFilePath)
 
-          if (dstFileFolder === 'background_image')
-            this.config.backgroundImageName = dstFileName
-          else if (dstFileFolder === 'block_image')
-            this.config.inputBlockImagePath.push(dstFilePath)
+            result.push(dstFileName)
+          }
+          return result
+        } catch (error) {
+          alert(`copyFile(), ${error}`)
         }
       },
       handleKey(e) {
@@ -714,10 +715,8 @@
             this.config.waitTime = this.config.inputWaitTime * 1000
 
             // 이미지 로드
-            if (this.config.inputBlockImagePath.length) {
-              this.config.blockImagePath = this.config.inputBlockImagePath
-              this.setImagePath(this.config.blockImagePath)
-            }
+            if (this.config.inputBlockImageName.length)
+              this.setBlockImagePath(this.config.inputBlockImageName)
 
             // 스핀 설정
             this.config.spin = this.config.inputSpin
@@ -742,44 +741,52 @@
         this.pauseEnd = false
       },
       handleSave() {
-        console.log('handleSave')
-        let options = {
-          filters: [{name: 'WE ARE HERE File', extensions: ['wah']}],
-        }
-        let savePath = electron.dialog.showSaveDialog(options)
-        if (savePath) {
-          console.log(`save file path : ${savePath}`)
-          /// config.json 생성
-          this.saveConfig.data = this.configArr
-          let jsonConfig = JSON.stringify(this.saveConfig)
-          console.log(`save json file : ${jsonConfig}`)
-          fs.writeFileSync(path.join(__static, 'config.json'), jsonConfig)
-          // savaPath에 static 폴더 압축하여 *.wah 파일 생성
-          const zip = new admzip()
-          zip.addLocalFolder(__static)
-          zip.writeZip(savePath)
+        try {
+          console.log('handleSave')
+          let options = {
+            filters: [{name: 'WE ARE HERE File', extensions: ['wah']}],
+          }
+          let savePath = electron.dialog.showSaveDialog(options)
+          if (savePath) {
+            console.log(`save file path : ${savePath}`)
+            /// config.json 생성
+            this.saveConfig.data = this.configArr
+            let jsonConfig = JSON.stringify(this.saveConfig)
+            console.log(`save json file : ${jsonConfig}`)
+            fs.writeFileSync(path.join(__static, 'config.json'), jsonConfig)
+            // savaPath에 static 폴더 압축하여 *.wah 파일 생성
+            const zip = new admzip()
+            zip.addLocalFolder(__static)
+            zip.writeZip(savePath)
+          }
+        } catch (error) {
+          alert(`handleSave(), ${error}`)
         }
       },
       handleLoad() {
-        console.log('handleLoad')
-        let options = {
-          filters: [{name: 'WE ARE HERE File', extensions: ['wah']}],
-        }
-        let loadPath = electron.dialog.showOpenDialog(options)
-        if (loadPath) {
-          console.log(`load file path : ${loadPath[0]}`)
-          // static 폴더에 *.wah 파일 압축 해제
-          const zip = new admzip(loadPath[0])
-          zip.extractAllTo(__static, true)
-          // config.json 읽기
-          let readFile = fs.readFileSync(path.join(__static, 'config.json'), {
-            encoding: 'utf8',
-          })
-          console.log(`load file data : ${readFile}`)
-          this.configArr = JSON.parse(readFile).data
-          // 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
-          this.handleEnvOK()
-          this.$bvModal.hide('env')
+        try {
+          console.log('handleLoad')
+          let options = {
+            filters: [{name: 'WE ARE HERE File', extensions: ['wah']}],
+          }
+          let loadPath = electron.dialog.showOpenDialog(options)
+          if (loadPath) {
+            console.log(`load file path : ${loadPath[0]}`)
+            // static 폴더에 *.wah 파일 압축 해제
+            const zip = new admzip(loadPath[0])
+            zip.extractAllTo(__static, true)
+            // config.json 읽기
+            let readFile = fs.readFileSync(path.join(__static, 'config.json'), {
+              encoding: 'utf8',
+            })
+            console.log(`load file data : ${readFile}`)
+            this.configArr = JSON.parse(readFile).data
+            // 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
+            this.handleEnvOK()
+            this.$bvModal.hide('env')
+          }
+        } catch (error) {
+          alert(`handleLoad(), ${error}`)
         }
       },
       handleGetBlockImagePath() {
@@ -791,13 +798,16 @@
         const blockImagePath = electron.dialog.showOpenDialog(options)
         if (blockImagePath) {
           console.log(blockImagePath)
-          this.config.inputBlockImagePath = []
-          this.copyFile(blockImagePath, 'block_image')
+          this.config.inputBlockImageName = []
+          this.config.inputBlockImageName = this.copyFile(
+            blockImagePath,
+            this.blockImageFolderName,
+          )
         }
       },
       handleInitBlockImagePath() {
         console.log('handleInitBlockImagePath')
-        this.config.inputBlockImagePath = this.config.blockImagePath = []
+        this.config.inputBlockImageName = this.config.blockImagePath = []
       },
       handleTab(n) {
         console.log(this.configArr[n])
@@ -828,13 +838,16 @@
           const backgroundImagePath = electron.dialog.showOpenDialog(options)
           // 배경 이미지 파일을 선택했을 경우
           if (backgroundImagePath) {
-            this.copyFile(backgroundImagePath, 'background_image')
+            this.config.backgroundImageName = this.copyFile(
+              backgroundImagePath,
+              this.backgroundImageFolderName,
+            )[0]
             // top/bottom 반반씩 이미지가 나오도록 설정
-            this.config.topBoardStyle.backgroundImage = `url('static/background_image/${this.config.backgroundImageName}')`
+            this.config.topBoardStyle.backgroundImage = `url('static/${this.backgroundImageFolderName}/${this.config.backgroundImageName}')`
             this.config.topBoardStyle.backgroundSize = `100% 200%`
             this.config.topBoardStyle.backgroundPosition = `center top`
 
-            this.config.bottomBoardStyle.backgroundImage = `url('static/background_image/${this.config.backgroundImageName}')`
+            this.config.bottomBoardStyle.backgroundImage = `url('static/${this.backgroundImageFolderName}/${this.config.backgroundImageName}')`
             this.config.bottomBoardStyle.backgroundSize = `100% 200%`
             this.config.bottomBoardStyle.backgroundPosition = `center bottom`
           }
