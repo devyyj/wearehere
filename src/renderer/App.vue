@@ -244,6 +244,7 @@
   const electron = require('electron').remote
   const path = require('path')
   const rmdir = require('rimraf')
+  const admzip = require('adm-zip')
 
   export default {
     name: 'wearehere',
@@ -519,11 +520,14 @@
       setBoardSize() {
         this.config.size =
           parseInt(window.innerHeight / this.config.count) * this.config.count
+
         // 선을 그릴때 좌표에 0.5픽셀씩 더하기 때문에 +1을 해준다.
-        this.topCtx.canvas.width = this.config.size + 1
-        this.topCtx.canvas.height = this.config.size / 2 + 1
-        this.bottomCtx.canvas.width = this.config.size + 1
-        this.bottomCtx.canvas.height = this.config.size / 2 + 1
+        let addPixel = 0
+        if (this.config.drawGrid) addPixel += 1
+        this.topCtx.canvas.width = this.config.size + addPixel
+        this.topCtx.canvas.height = this.config.size / 2 + addPixel
+        this.bottomCtx.canvas.width = this.config.size + addPixel
+        this.bottomCtx.canvas.height = this.config.size / 2 + addPixel
       },
       restart() {
         this.end = false
@@ -745,10 +749,15 @@
         let savePath = electron.dialog.showSaveDialog(options)
         if (savePath) {
           console.log(`save file path : ${savePath}`)
+          /// config.json 생성
           this.saveConfig.data = this.configArr
           let jsonConfig = JSON.stringify(this.saveConfig)
           console.log(`save json file : ${jsonConfig}`)
-          fs.writeFileSync(savePath, jsonConfig)
+          fs.writeFileSync(path.join(__static, 'config.json'), jsonConfig)
+          // savaPath에 static 폴더 압축하여 *.wah 파일 생성
+          const zip = new admzip()
+          zip.addLocalFolder(__static)
+          zip.writeZip(savePath)
         }
       },
       handleLoad() {
@@ -759,10 +768,17 @@
         let loadPath = electron.dialog.showOpenDialog(options)
         if (loadPath) {
           console.log(`load file path : ${loadPath[0]}`)
-          let readFile = fs.readFileSync(loadPath[0], {encoding: 'utf8'})
+          // static 폴더에 *.wah 파일 압축 해제
+          const zip = new admzip(loadPath[0])
+          zip.extractAllTo(__static, true)
+          // config.json 읽기
+          let readFile = fs.readFileSync(path.join(__static, 'config.json'), {
+            encoding: 'utf8',
+          })
           console.log(`load file data : ${readFile}`)
           this.configArr = JSON.parse(readFile).data
-          this.handleEnvOK() // 예외처리가 복잡해서 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
+          // 설정 파일을 불러오자 마자 바로 적용하여 실행한다.
+          this.handleEnvOK()
           this.$bvModal.hide('env')
         }
       },

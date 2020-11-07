@@ -1,6 +1,6 @@
 {
   "name": "wearehere",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "author": "",
   "description": "An electron-vue project",
   "license": null,
@@ -67,6 +67,7 @@
     "vuex-electron": "^1.0.0"
   },
   "devDependencies": {
+    "adm-zip": "^0.4.16",
     "ajv": "^6.5.0",
     "babel-core": "^6.26.3",
     "babel-eslint": "^8.2.3",
