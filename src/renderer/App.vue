@@ -4,6 +4,22 @@
       <canvas id="top-board" :style="config.topBoardStyle"></canvas
       ><canvas id="bottom-board" :style="config.bottomBoardStyle"></canvas>
     </div>
+
+    <b-modal
+      id="wait"
+      size="sm"
+      title="이미지 처리중"
+      centered
+      no-close-on-backdrop
+      no-close-on-esc
+      hide-header-close
+      hide-footer
+    >
+      <div class="text-center">
+        <b-spinner variant="primary" label="Text Centered"></b-spinner>
+      </div>
+    </b-modal>
+
     <b-modal
       id="admin"
       size="sm"
@@ -11,6 +27,7 @@
       centered
       no-close-on-backdrop
       hide-header-close
+      no-close-on-esc
       @ok="handleAdminOK"
       @cancel="handleAdminCancel"
     >
@@ -27,6 +44,7 @@
         ></b-form-input>
       </b-form-group>
     </b-modal>
+
     <b-modal
       id="env"
       centered
@@ -35,6 +53,7 @@
       ok-only
       no-close-on-backdrop
       hide-header-close
+      no-close-on-esc
       @ok="handleEnvOK"
       @show="handleEnvShow"
       @hide="handleEnvHide"
@@ -236,15 +255,20 @@
 <script>
   import Board from './board'
   import Block from './block'
-  import fs from 'original-fs'
-  import {time, timeEnd, timeLog} from 'console'
+  import fs from 'fs'
   import * as _ from 'lodash'
+  // ! build 명령을 실행할 때 dependencies에 포함되어 있어야 한다.
+  // ! 즉, npm i -P jimp 명령으로 설치해야 build에서 오류가 안난다. (이유 모름)
+  // ! dev 명령을 실행할 때는 devDependencies에 포함되어 있어야 한다.
+  // ! package.json에서 build와 dev명령에 jimp를 설치하는 명령을 추가했다.
+  import jimp from 'jimp'
 
   const du = require('datauri/sync')
   const electron = require('electron').remote
   const path = require('path')
   const rmdir = require('rimraf')
   const admzip = require('adm-zip')
+  // const jimp = require('jimp')
 
   export default {
     name: 'wearehere',
@@ -348,19 +372,11 @@
       },
     },
     created() {
-      try {
-        // 이미지가 쌓이는 것을 방지하기 위해 static 폴더 삭제 후 재 생성
-        if (fs.existsSync(__static)) rmdir.sync(__static)
-        if (fs.existsSync(__static) === false) fs.mkdirSync(__static)
-      } catch (error) {
-        alert(`created(), ${error}`)
-      }
-
+      this.clearStaticFolder()
       // resize 이벤트 리스너 등록
       window.addEventListener('resize', () => {
         this.init()
       })
-
       // 키보드 이벤트 리스너 등록
       window.addEventListener('keydown', this.handleKey)
     },
@@ -644,25 +660,44 @@
         )
       },
       // 파일 복사 후 복사된 파일 이름을 리턴한다.
-      copyFile(srcFilePath, dstFileFolder) {
+      async copyFile(srcFilePath, dstFileFolder) {
         try {
+          this.$bvModal.show('wait')
           let result = []
+          let promises = []
           for (let i = 0; i < srcFilePath.length; i++) {
             // 파일 이름이 같을 수 있으므로 파일 이름을 시간으로 처리
-            let dstFileName = `${Date.now()}${path.extname(srcFilePath[i])}`
+            let dstFileName = `${Date.now()}_${i}${path.extname(
+              srcFilePath[i],
+            )}`
             const folderPath = path.join(__static, dstFileFolder)
             const dstFilePath = path.join(folderPath, dstFileName)
             console.log(`copyFile(), ${srcFilePath[i]} to ${dstFilePath}`)
             // 이미지를 저장할 디렉토리 생성
             if (fs.existsSync(folderPath) === false) fs.mkdirSync(folderPath)
-            // 이미지 파일 복사
-            fs.copyFileSync(srcFilePath[i], dstFilePath)
-
+            // jimp 라이브러리를 사용하면 exif orientation 값에 맞춰서 이미지를 읽고 자동으로 회전한다.
+            // 회전된 이미지를 정상적으로 출력하기 위해서 jimp 라이브러리를 사용해서 이미지를 복사한다.
+            // ? 다만, 회전된 이미지를 출력하는 것은 정상적인데
+            // ? 탐색기에서 미리보는 이미지와 출력하는 이미지가 서로 다르다. (원인 파악 필요 but 귀찮)
+            // ! 비동기 코드를 짜는 것에 대한 이해가 부족한 것 같다.
+            const image = await jimp.read(srcFilePath[i])
+            image.write(dstFilePath)
             result.push(dstFileName)
           }
+          this.$bvModal.hide('wait')
+          console.log(result)
           return result
         } catch (error) {
           alert(`copyFile(), ${error}`)
+        }
+      },
+      // 이미지가 쌓이는 것을 방지하기 위해 static 폴더 삭제 후 재 생성
+      clearStaticFolder() {
+        try {
+          if (fs.existsSync(__static)) rmdir.sync(__static)
+          if (fs.existsSync(__static) === false) fs.mkdirSync(__static)
+        } catch (error) {
+          alert(`created(), ${error}`)
         }
       },
       handleKey(e) {
@@ -674,7 +709,7 @@
           // 인덱스 재설정, restart() 안에 넣으면 안됨
           this.configIndex = 0
           this.restart()
-        } else if (e.code === 'KeyE') {
+        } else if (e.code === 'KeyE') {          
           this.pause = true
           this.pauseR = true
           this.pauseEnd = true
@@ -714,9 +749,20 @@
             this.config.endSpeed = this.config.inputEndSpeed * 1000
             this.config.waitTime = this.config.inputWaitTime * 1000
 
-            // 이미지 로드
+            // 블럭 이미지 로드
             if (this.config.inputBlockImageName.length)
               this.setBlockImagePath(this.config.inputBlockImageName)
+
+            // 배경 이미지 로드, top/bottom 반반씩 이미지가 나오도록 설정
+            if (this.config.backgroundImageName) {
+              this.config.topBoardStyle.backgroundImage = `url('static/${this.backgroundImageFolderName}/${this.config.backgroundImageName}')`
+              this.config.topBoardStyle.backgroundSize = `100% 200%`
+              this.config.topBoardStyle.backgroundPosition = `center top`
+
+              this.config.bottomBoardStyle.backgroundImage = `url('static/${this.backgroundImageFolderName}/${this.config.backgroundImageName}')`
+              this.config.bottomBoardStyle.backgroundSize = `100% 200%`
+              this.config.bottomBoardStyle.backgroundPosition = `center bottom`
+            }
 
             // 스핀 설정
             this.config.spin = this.config.inputSpin
@@ -789,7 +835,7 @@
           alert(`handleLoad(), ${error}`)
         }
       },
-      handleGetBlockImagePath() {
+      async handleGetBlockImagePath() {
         console.log('handleGetBlockImagePath')
         const options = {
           filters: [{name: 'Images', extensions: ['jpg', 'jpeg', 'png']}],
@@ -799,7 +845,7 @@
         if (blockImagePath) {
           console.log(blockImagePath)
           this.config.inputBlockImageName = []
-          this.config.inputBlockImageName = this.copyFile(
+          this.config.inputBlockImageName = await this.copyFile(
             blockImagePath,
             this.blockImageFolderName,
           )
@@ -829,7 +875,7 @@
       },
       // background-image 속성을 사용하여 배경 이미지를 설정
       // 어플리케이션의 static 폴더로 파일을 가져와야 한다.
-      handleGetBackgroundImagePath() {
+      async handleGetBackgroundImagePath() {
         try {
           console.log('handleGetBackgroundImagePath')
           const options = {
@@ -838,18 +884,11 @@
           const backgroundImagePath = electron.dialog.showOpenDialog(options)
           // 배경 이미지 파일을 선택했을 경우
           if (backgroundImagePath) {
-            this.config.backgroundImageName = this.copyFile(
+            const fileName = await this.copyFile(
               backgroundImagePath,
               this.backgroundImageFolderName,
-            )[0]
-            // top/bottom 반반씩 이미지가 나오도록 설정
-            this.config.topBoardStyle.backgroundImage = `url('static/${this.backgroundImageFolderName}/${this.config.backgroundImageName}')`
-            this.config.topBoardStyle.backgroundSize = `100% 200%`
-            this.config.topBoardStyle.backgroundPosition = `center top`
-
-            this.config.bottomBoardStyle.backgroundImage = `url('static/${this.backgroundImageFolderName}/${this.config.backgroundImageName}')`
-            this.config.bottomBoardStyle.backgroundSize = `100% 200%`
-            this.config.bottomBoardStyle.backgroundPosition = `center bottom`
+            )
+            this.config.backgroundImageName = fileName[0]
           }
         } catch (error) {
           alert(`handleGetBackgroundImagePath(), ${error}`)
