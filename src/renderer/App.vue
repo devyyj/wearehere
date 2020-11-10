@@ -32,7 +32,7 @@
       @cancel="handleAdminCancel"
     >
       <b-form-group
-        label="Are you UNI+FORM ?"
+        label="Are you UNITFORM ?"
         description="비밀번호를 모르면 취소 버튼을 누르세요."
       >
         <b-form-input
