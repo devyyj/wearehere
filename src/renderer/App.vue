@@ -896,6 +896,7 @@
       },
       handleInitBackgroundImagePath() {
         console.log('handleInitBackgroundImagePath')
+        this.config.backgroundImageName = ''
         delete this.config.topBoardStyle.backgroundImage
         delete this.config.bottomBoardStyle.backgroundImage
       },
