@@ -348,12 +348,12 @@
         )
       },
       calculateLongitude() {
-        // 한 줄에 20~140개. 즉 120의 범위를 가짐. 짝수개만 취급하면 총 60단계
-        // 경도 범위는 0~180
-        // 180/60 = 3, 경도 범위 1당 블럭 수 1단계씩 올리면 됨.
-        // 블럭수 1단계는 2개씩 증가
+        // 한 줄에 20~140개. 즉 120의 범위를 가짐. top/bottom board의 가로 세로가 짝수이려면 블럭은 4칸씩 증가해야 함.
+        // 2칸씩 증가하면 세로 길이가 홀수인 경우가 발생. 예) 가로세로 22칸의 경우 top board의 세로 길이가 11칸이 됨.
+        // 경도 범위는 0~180.
+        // 따라서, 경도 6당 블럭 4개씩 증가.
         return (
-          20 + Math.ceil(Math.abs(parseInt(this.config.inputLongitude)) / 3) * 2
+          20 + Math.ceil(Math.abs(parseInt(this.config.inputLongitude)) / 6) * 4
         )
       },
       validFeedbackLongitude() {
@@ -709,7 +709,7 @@
           // 인덱스 재설정, restart() 안에 넣으면 안됨
           this.configIndex = 0
           this.restart()
-        } else if (e.code === 'KeyE') {          
+        } else if (e.code === 'KeyE') {
           this.pause = true
           this.pauseR = true
           this.pauseEnd = true
@@ -818,6 +818,7 @@
           let loadPath = electron.dialog.showOpenDialog(options)
           if (loadPath) {
             console.log(`load file path : ${loadPath[0]}`)
+            this.clearStaticFolder()
             // static 폴더에 *.wah 파일 압축 해제
             const zip = new admzip(loadPath[0])
             zip.extractAllTo(__static, true)
@@ -844,7 +845,12 @@
         const blockImagePath = electron.dialog.showOpenDialog(options)
         if (blockImagePath) {
           console.log(blockImagePath)
-          this.config.inputBlockImageName = []
+          // remove old iamge file and reset
+          await Promise.all(
+            this.config.inputBlockImageName.map((x) =>
+              fs.unlinkSync(path.join(__static, this.blockImageFolderName, x)),
+            ),
+          )
           this.config.inputBlockImageName = await this.copyFile(
             blockImagePath,
             this.blockImageFolderName,
@@ -884,6 +890,15 @@
           const backgroundImagePath = electron.dialog.showOpenDialog(options)
           // 배경 이미지 파일을 선택했을 경우
           if (backgroundImagePath) {
+            // remove old background file and reset
+            if (this.config.backgroundImageName)
+              fs.unlinkSync(
+                path.join(
+                  __static,
+                  this.backgroundImageFolderName,
+                  this.config.backgroundImageName,
+                ),
+              )
             const fileName = await this.copyFile(
               backgroundImagePath,
               this.backgroundImageFolderName,
